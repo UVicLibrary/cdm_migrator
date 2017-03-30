@@ -1,6 +1,12 @@
 module CdmMigrater
 	class CdmController < ApplicationController
-  
+
+		def initialize
+			super
+			@cdm_url = CdmMigrater::Engine.config["cdm_url"]
+			@cdm_port = CdmMigrater::Engine.config["cdm_port"]
+		end
+
 		before_action do
 			@terms = Hyrax::FileSetForm.primary_terms + Hyrax::FileSetForm.secondary_terms
 			@work_only = Hyrax::GenericWorkForm.required_fields + Hyrax::GenericWorkForm.secondary_terms - @terms

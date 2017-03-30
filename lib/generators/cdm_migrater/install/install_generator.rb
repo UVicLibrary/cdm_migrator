@@ -6,4 +6,8 @@ class CdmMigrater::InstallGenerator < Rails::Generators::Base
       %(\n  mount CdmMigrater::Engine => '/cdm_migrater'\n)
     end
   end
+
+  def inject_content_dm_yml
+    copy_file "config/cdm_migrator.yml", "config/cdm_migrator.yml"
+  end
 end
