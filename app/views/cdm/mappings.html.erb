@@ -1,0 +1,31 @@
+<style type="text/css" media="screen">
+
+table{
+border-collapse:collapse;
+border:1px solid black;
+}
+
+table td{
+border:1px solid black;
+}
+</style>
+<%= form_tag cdm_generate_path+".csv" do %>
+<%= hidden_field_tag "collection", params[:collection] %>
+  <table>
+  <% @cdm_terms.each_with_index do |t,i| %>
+    <tr>
+    <td>
+    <%= label_tag t.first %>
+    <%= hidden_field_tag "mappings[#{i}][cdm]", t.last %>
+    </td>
+    <td>
+    <h3>Choose one</h3>
+    <%= label_tag 'applies to boths compound objects and children:' %><%= select_tag "mappings[#{i}][hydra]", options_for_select(@terms), include_blank: true %><br>
+    <%= label_tag 'applies only to compound objects: ' %><%= select_tag "mappings[#{i}][hydrac]", options_for_select(@work_only), include_blank: true %>
+    </td>
+    </tr>
+  <% end %>
+  <table>
+  <%= select_tag "mappings_url", options_for_select(@dirs) %>
+  <%= submit_tag 'generate csv' %>
+<% end %>
