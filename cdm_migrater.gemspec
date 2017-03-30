@@ -21,4 +21,5 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "engine_cart", '~> 1.1'
   s.add_development_dependency "therubyracer"
+  s.add_development_dependency "rspec-rails"
 end
