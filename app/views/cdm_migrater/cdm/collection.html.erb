@@ -1,4 +1,5 @@
 <%= form_tag cdm_mappings_path, method: "get" do %>
-<%= select_tag 'collection', options_for_select(@test) %>
+<%= select_tag 'collection', options_for_select(@collections) %>
+<%= select_tag 'work', options_for_select(@available_concerns) %>
 <%= submit_tag 'choose mappings' %>
 <% end %>

@@ -26,5 +26,6 @@ border:1px solid black;
     </tr>
   <% end %>
   <table>
+  <%= hidden_field_tag "work", params[:work] %>
   <%= submit_tag 'generate csv' %>
 <% end %>

@@ -6,7 +6,13 @@ module CdmMigrater
 			@cdm_url = CdmMigrater::Engine.config["cdm_url"]
 			@cdm_port = CdmMigrater::Engine.config["cdm_port"]
 			@terms = Hyrax::FileSetForm.primary_terms + Hyrax::FileSetForm.secondary_terms
-			@work_only = Hyrax::GenericWorkForm.required_fields + Hyrax::GenericWorkForm.new(GenericWork.new,nil,nil).secondary_terms - @terms
+		end
+		
+		before_action :set_exclusive_fields, only: [:generate, :mappings]
+		
+		def set_exclusive_fields
+		  work_form = "Hyrax::#{params[:work]}Form".split('::').inject(Object) {|o,c| o.const_get c}
+			@work_only = work_form.required_fields + work_form.new(params[:work].constantize.new,nil,nil).secondary_terms - @terms
 		end
 
 		def generate
@@ -69,7 +75,8 @@ module CdmMigrater
 
 		def collection
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionList/json")).body)
-			@test = json.collect { |c| [c['name'],c['secondary_alias']] }
+			@collections = json.collect { |c| [c['name'],c['secondary_alias']] }
+			@available_concerns = Hyrax.config.curation_concerns.map { |c| [c.to_s, c.to_s]}
 		end
 
 		protected
