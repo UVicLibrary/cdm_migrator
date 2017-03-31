@@ -5,13 +5,9 @@ module CdmMigrater
 			super
 			@cdm_url = CdmMigrater::Engine.config["cdm_url"]
 			@cdm_port = CdmMigrater::Engine.config["cdm_port"]
-		end
-
-		before_action do
 			@terms = Hyrax::FileSetForm.primary_terms + Hyrax::FileSetForm.secondary_terms
-			@work_only = Hyrax::GenericWorkForm.required_fields + Hyrax::GenericWorkForm.secondary_terms - @terms
+			@work_only = Hyrax::GenericWorkForm.required_fields + Hyrax::GenericWorkForm.new(GenericWork.new,nil,nil).secondary_terms - @terms
 		end
-
 
 		def generate
 			@h_to_c = {}
@@ -27,7 +23,7 @@ module CdmMigrater
 					@h_to_c[mapping['hydrac']] << mapping['cdm']
 				end
 			end
-			json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery/#{params[:collection]}/0/0/filetype/1024/0/0/0/0/0/1/0/json")).body)
+			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery/#{params[:collection]}/0/0/filetype/1024/0/0/0/0/0/1/0/json")).body)
 			total_recs = json["pager"]["total"].to_i
 
 			if total_recs > 1024
@@ -45,36 +41,34 @@ module CdmMigrater
 			csv_lines = [] << headers
 			records.each do |rec|
 				if rec.last == "cpd"
-					json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
+					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line("GenericWork","",json)
-					json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCompoundObjectInfo/#{params[:collection]}/#{rec.first}/json")).body)
+					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCompoundObjectInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					json['page'].each do |child|
-						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
-						url = "file://#{file_path(child['pageptr'])}"
+						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
+						url = "http://#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}"#"file://#{file_path(rec.first)}"
+						#url = "file://#{file_path(child['pageptr'])}"
 						csv_lines << create_line("File",url,child_json)
 					end
 				else
-					json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
+					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line("GenericWork","",json)
-					url = "file://#{file_path(rec.first)}"
+					url = "http://#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"#"file://#{file_path(rec.first)}"
 					csv_lines << create_line("File",url,{})
 				end
 			end
-
-			@ch = json
-			@hc = csv_lines
 			render plain: csv_lines.join, content_type: 'text/csv'
 
 		end
 
 		def mappings
-			json = JSON.parse(Net::HTTP.get_response(URI.parse('http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionFieldInfo/'+params['collection']+'/json')).body)
+			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionFieldInfo/"+params['collection']+'/json')).body)
 			@cdm_terms = json.collect { |c| [c['name'],c['nick']] }
-			@dirs = get_dirs
+			#@dirs = get_dirs
 		end
 
 		def collection
-			json = JSON.parse(Net::HTTP.get_response(URI.parse('http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionList/json')).body)
+			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionList/json")).body)
 			@test = json.collect { |c| [c['name'],c['secondary_alias']] }
 		end
 
