@@ -1,9 +1,9 @@
 require 'hyrax'
 
-module CdmMigrater
+module CdmMigrator
   class Engine < ::Rails::Engine
 
-    isolate_namespace CdmMigrater
+    isolate_namespace CdmMigrator
     class << self
       
       def config

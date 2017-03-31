@@ -1,4 +1,4 @@
-module CdmMigrater
+module CdmMigrator
   module ApplicationHelper
   end
 end

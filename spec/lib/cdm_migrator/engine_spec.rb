@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-describe CdmMigrater::Engine do
+describe CdmMigrator::Engine do
   describe "#load_config" do
     let(:file) { File.join(fixture_path, 'cdm_migrator.yml') }
     subject { described_class.config }

@@ -1,4 +1,4 @@
-CdmMigrater::Engine.routes.draw do
+CdmMigrator::Engine.routes.draw do
   get '/csv/upload', to: 'csv#upload'
   post '/csv/upload', to: 'csv#create'
   get '/csv/generate', to: 'csv#generate'

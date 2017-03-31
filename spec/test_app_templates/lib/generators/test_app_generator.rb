@@ -8,7 +8,7 @@
           # after setting up the application
 
           def install_engine
-            generate 'cdm_migrater:install'
+            generate 'cdm_migrator:install'
           end
         end
 
