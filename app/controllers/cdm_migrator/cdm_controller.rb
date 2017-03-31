@@ -5,13 +5,24 @@ module CdmMigrator
 			super
 			@cdm_url = CdmMigrator::Engine.config["cdm_url"]
 			@cdm_port = CdmMigrator::Engine.config["cdm_port"]
-			@terms = Hyrax::FileSetForm.primary_terms + Hyrax::FileSetForm.secondary_terms
 		end
 		
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
 		
+		def secondary_terms file_form
+        file_form.terms - file_form.required_fields -
+          [:visibility_during_embargo, :embargo_release_date,
+           :visibility_after_embargo, :visibility_during_lease,
+           :lease_expiration_date, :visibility_after_lease, :visibility,
+           :thumbnail_id, :representative_id, :ordered_member_ids,
+           :collection_ids, :in_works_ids, :admin_set_id]
+      end
+		
 		def set_exclusive_fields
-		  work_form = "Hyrax::#{params[:work]}Form".split('::').inject(Object) {|o,c| o.const_get c}
+		  #Module.const_get "Hyrax::GenericWorkForm" rescue false #.split('::').inject(Object) {|o,c| o.const_get c}
+		  file_form = Module.const_get("FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
+		  work_form = Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
+			@terms = file_form.required_fields + secondary_terms(file_form)
 			@work_only = work_form.required_fields + work_form.new(params[:work].constantize.new,nil,nil).secondary_terms - @terms
 		end
 
