@@ -17,6 +17,12 @@ Or install it yourself as:
 ```bash
 $ gem install cdm_migrator
 ```
+
+Finally, run:
+```bash
+$ rails g cdm_migrator:install
+```
+
 ## Usage
 1. Add your ContentDM url and api port to the cdm_migrator.yml file.
 2. Navigate to the *cdm_migrator/cdm/collection* url to select your contentdm collection and what type of work you want to export it to and click "choose mappings".
