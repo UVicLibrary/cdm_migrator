@@ -20,7 +20,7 @@ module CdmMigrator
 		
 		def set_exclusive_fields
 		  #Module.const_get "Hyrax::GenericWorkForm" rescue false #.split('::').inject(Object) {|o,c| o.const_get c}
-		  file_form = Module.const_get("FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
+		  file_form = Module.const_get("Hyrax::FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
 		  work_form = Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
 			@terms = file_form.required_fields + secondary_terms(file_form)
 			@work_only = work_form.required_fields + work_form.new(params[:work].constantize.new,nil,nil).secondary_terms - @terms
