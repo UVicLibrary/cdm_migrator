@@ -26,7 +26,7 @@ border:1px solid black;
     </td>
     </tr>
   <% end %>
-  <table>
+  </table>
   <%= select_tag "mappings_url", options_for_select(@dirs) %>
   <%= hidden_field_tag "work", params[:work] %>
   <%= submit_tag 'generate csv' %>
