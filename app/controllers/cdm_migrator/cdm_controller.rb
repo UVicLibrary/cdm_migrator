@@ -5,6 +5,7 @@ module CdmMigrator
 			super
 			@cdm_url = CdmMigrator::Engine.config["cdm_url"]
 			@cdm_port = CdmMigrator::Engine.config["cdm_port"]
+			@cdm_dirs = CdmMigrator::Engine.config["cdm_dirs"]
 		end
 		
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
@@ -42,7 +43,6 @@ module CdmMigrator
 			end
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery/#{params[:collection]}/0/0/filetype/1024/0/0/0/0/0/1/0/json")).body)
 			total_recs = json["pager"]["total"].to_i
-
 			if total_recs > 1024
 				start = 1
 				records = []
@@ -61,16 +61,18 @@ module CdmMigrator
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line("GenericWork","",json)
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCompoundObjectInfo/#{params[:collection]}/#{rec.first}/json")).body)
-					json['page'].each do |child|
+					rec_pages = json['page'] || json['node']['page']
+					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
-						url = "http://#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}"#"file://#{file_path(rec.first)}"
-						#url = "file://#{file_path(child['pageptr'])}"
+						url = "file://#{file_path(child['pageptr'])}"
+						url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}" unless params[:file_system]=="true" #"file://#{file_path(rec.first)}"
 						csv_lines << create_line("File",url,child_json)
 					end
 				else
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line("GenericWork","",json)
-					url = "http://#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"#"file://#{file_path(rec.first)}"
+					url = "file://#{file_path(rec.first)}"
+					url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}" unless params[:file_system]=="true" #"file://#{file_path(rec.first)}"
 					csv_lines << create_line("File",url,{})
 				end
 			end
@@ -81,7 +83,7 @@ module CdmMigrator
 		def mappings
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionFieldInfo/"+params['collection']+'/json')).body)
 			@cdm_terms = json.collect { |c| [c['name'],c['nick']] }
-			#@dirs = get_dirs
+			get_dirs
 		end
 
 		def collection
@@ -116,7 +118,7 @@ module CdmMigrator
 				file_types = ['tif','jpg','mp4','mp3']
 				files = []
 				file_types.each do |type|
-					files << Dir.glob("/APP_ROOT/tmp/uploads/local_files/#{params['mappings_url']}/**/#{pointer}_*#{type}")
+					files << Dir.glob("#{params['mappings_url']}/**/#{pointer}_*#{type}")
 				end
 				files.each do |file|
 					return file.first if file.count > 0
@@ -124,11 +126,12 @@ module CdmMigrator
 			end
 
 			def get_dirs
-				cat = Dir.entries('/APP_ROOT/tmp/uploads/local_files/Cataloguing').select {|entry| File.directory? File.join('/APP_ROOT/tmp/uploads/local_files/Cataloguing',entry) and !(entry =='.' || entry == '..') }
-				cat = cat.map { |url| "Cataloguing/#{url}" }
-				sc = Dir.entries('/APP_ROOT/tmp/uploads/local_files/Special Collections').select {|entry| File.directory? File.join('/APP_ROOT/tmp/uploads/local_files/Special Collections',entry) and !(entry =='.' || entry == '..') }
-				sc = sc.map { |url| "Special Collections/#{url}" }
-				cat + sc
+			  @dirs = []
+			  @cdm_dirs.each do |name, dir|
+			    ent = Dir.entries(dir).select {|entry| File.directory? File.join(dir,entry) and !(entry =='.' || entry == '..') }
+			    ent = ent.map { |url| ["#{name}/#{url}", "#{dir}/#{url}"] }
+			    @dirs += ent
+				end
 			end
 	end
 end

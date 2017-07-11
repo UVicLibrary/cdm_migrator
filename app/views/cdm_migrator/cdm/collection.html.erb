@@ -1,5 +1,9 @@
 <%= form_tag cdm_mappings_path, method: "get" do %>
 <%= select_tag 'collection', options_for_select(@collections) %>
+<br />
 <%= select_tag 'work', options_for_select(@available_concerns) %>
+<br />
+Use Local File Storage: <%= check_box_tag 'file_system', 'true', false %>
+<br />
 <%= submit_tag 'choose mappings' %>
 <% end %>
