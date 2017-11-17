@@ -9,7 +9,7 @@ table td{
 border:1px solid black;
 }
 </style>
-<%= form_tag cdm_generate_path+".csv" do %>
+<%= form_tag cdm_generate_path.gsub("generate",".csv") do %>
 <%= hidden_field_tag "collection", params[:collection] %>
 <%= hidden_field_tag "file_system", params[:file_system] %>
   <table>
@@ -27,7 +27,7 @@ border:1px solid black;
     </tr>
   <% end %>
   </table>
-  <%= select_tag "mappings_url", options_for_select(@dirs) %>
+  <%= select_tag "mappings_url", options_for_select(@dirs) if @cdm_dirs %>
   <%= hidden_field_tag "work", params[:work] %>
   <%= submit_tag 'generate csv' %>
 <% end %>

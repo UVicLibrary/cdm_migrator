@@ -5,7 +5,7 @@ module CdmMigrator
 			super
 			@cdm_url = CdmMigrator::Engine.config["cdm_url"]
 			@cdm_port = CdmMigrator::Engine.config["cdm_port"]
-			@cdm_dirs = CdmMigrator::Engine.config["cdm_dirs"]
+			@cdm_dirs = CdmMigrator::Engine.config["cdm_dirs"] || false
 		end
 		
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
@@ -83,7 +83,9 @@ module CdmMigrator
 		def mappings
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionFieldInfo/"+params['collection']+'/json')).body)
 			@cdm_terms = json.collect { |c| [c['name'],c['nick']] }
-			get_dirs
+			if @cdm_dirs
+				get_dirs
+			end
 		end
 
 		def collection

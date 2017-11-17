@@ -1,2 +1,5 @@
 cdm_url: 'http://your-content-dm-host'
 cdm_port: 8080
+cdm_dirs:
+  dir1: '/dir1/path/goes/here'
+  dir2: '/dir2/path/goes/here'

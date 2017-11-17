@@ -24,7 +24,7 @@ module CdmMigrator
 			CsvUploadJob.perform_later(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], @current_user)
 			#perform(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], @current_user)
 			flash[:notice] = "csv successfully uploaded"
-			redirect_to "/csv/upload"
+			redirect_to csv_upload_path
 		end
 
 		def perform(csv, mvs, current_user)

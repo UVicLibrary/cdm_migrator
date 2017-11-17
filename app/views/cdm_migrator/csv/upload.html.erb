@@ -1,4 +1,4 @@
-<%= form_for :csv_import, url: "/csv/upload" do |f| %>
+<%= form_for :csv_import, url: csv_create_path do |f| %>
 	<%= f.label 'Multi-value Separator:' %>
     <%= f.text_field 'mvs' %>
     <br />
@@ -7,4 +7,4 @@
 	<%= f.submit 'Save' %>
 <% end %>
 <br />
-<%= link_to "template", "/csv/generate.csv" %>
+<%= link_to "template", csv_generate_path %>
