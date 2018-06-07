@@ -5,7 +5,6 @@ class CsvUploadJob < ActiveJob::Base
 	def perform(csv, mvs, current_user)
 		@csv = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
 		@mvs = mvs
-		@current_user = current_user
 		@works = []
 		@files = {}
 		@csv.each do |row|
@@ -28,7 +27,7 @@ class CsvUploadJob < ActiveJob::Base
 		def create_file_from_url(url, file_name, work, file_data)
 			::FileSet.new(import_url: url, label: file_name) do |fs|
 			  fs.save
-				actor = Hyrax::Actors::FileSetActor.new(fs, @current_user)
+				actor = Hyrax::Actors::FileSetActor.new(fs, current_user)
 				actor.create_metadata#(work, visibility: work.visibility)
 				actor.attach_file_to_work(work)
 				#byebug
@@ -36,7 +35,7 @@ class CsvUploadJob < ActiveJob::Base
 				fs.save!
 				uri = URI.parse(url.gsub(' ','%20'))
 				if uri.scheme == 'file'
-					IngestLocalFileJob.perform_later(fs, uri.path.gsub('%20',' '), @current_user)
+					IngestLocalFileJob.perform_later(fs, uri.path.gsub('%20',' '), current_user)
 				else
 					ImportUrlJob.perform_later(fs, log(actor.user))
 				end
