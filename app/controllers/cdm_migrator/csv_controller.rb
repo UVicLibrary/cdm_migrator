@@ -21,8 +21,8 @@ module CdmMigrator
 		def create
 			#byebug
 			csv = CSV.parse(File.read(params[:csv_import][:csv_file].path), headers: true, encoding: 'utf-8')
-			CsvUploadJob.perform_later(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], @current_user)
-			#perform(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], @current_user)
+			CsvUploadJob.perform_later(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], current_user)
+			#perform(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], current_user)
 			flash[:notice] = "csv successfully uploaded"
 			redirect_to csv_upload_path
 		end
@@ -30,7 +30,6 @@ module CdmMigrator
 		def perform(csv, mvs, current_user)
 			@csv = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
 			@mvs = mvs
-			@current_user = current_user
 			@works = []
 			@files = {}
 			@csv.each do |row|
@@ -53,7 +52,7 @@ module CdmMigrator
 			def create_file_from_url(url, file_name, work, file_data)
 				::FileSet.new(import_url: url, label: file_name) do |fs|
 					fs.save
-					actor = Hyrax::Actors::FileSetActor.new(fs, @current_user)
+					actor = Hyrax::Actors::FileSetActor.new(fs, current_user)
 					actor.create_metadata#(work, visibility: work.visibility)
 					actor.attach_file_to_work(work)
 					#byebug
@@ -61,7 +60,7 @@ module CdmMigrator
 					fs.save!
 					uri = URI.parse(url.gsub(' ','%20'))
 					if uri.scheme == 'file'
-						IngestLocalFileJob.perform_later(fs, uri.path.gsub('%20',' '), @current_user)
+						IngestLocalFileJob.perform_later(fs, uri.path.gsub('%20',' '), current_user)
 					else
 						ImportUrlJob.perform_later(fs, log(actor.user))
 					end
@@ -94,7 +93,7 @@ module CdmMigrator
 					work = Object.const_get(work_data.first.last).new#delete("object_type")).new
 					status_after, embargo_date, lease_date = nil, nil, nil
 					final_work_data = create_data work_data, "Hyrax::GenericWorkForm", work
-					work.apply_depositor_metadata(@current_user)
+					work.apply_depositor_metadata(current_user)
 					work.attributes = final_work_data
 					work.save
 					create_files(work, index)
