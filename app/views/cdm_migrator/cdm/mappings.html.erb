@@ -9,6 +9,7 @@ table td{
 border:1px solid black;
 }
 </style>
+
 <%= form_tag cdm_generate_path.gsub("generate","generate.csv") do %>
 <%= hidden_field_tag "collection", params[:collection] %>
 <%= hidden_field_tag "file_system", params[:file_system] %>
@@ -21,13 +22,30 @@ border:1px solid black;
     </td>
     <td>
     <h3>Choose one</h3>
-    <%= label_tag 'applies to boths compound objects and children:' %><%= select_tag "mappings[#{i}][hydra]", options_for_select(@terms), include_blank: true %><br>
-    <%= label_tag 'applies only to compound objects: ' %><%= select_tag "mappings[#{i}][hydrac]", options_for_select(@work_only), include_blank: true %>
+    <%= label_tag 'applies to boths compound objects and children:' %><%= select_tag "mappings[#{i}][hydra]", options_for_select(@terms, @yaml.nil? ? "" : @yaml[t.last]['hydra']), include_blank: true %><br>
+    <%= label_tag 'applies only to compound objects: ' %><%= select_tag "mappings[#{i}][hydrac]", options_for_select(@work_only, @yaml.nil? ? "" : @yaml[t.last]['hydrac']), include_blank: true %>
     </td>
     </tr>
   <% end %>
   </table>
   <%= select_tag "mappings_url", options_for_select(@dirs) if @cdm_dirs %>
   <%= hidden_field_tag "work", params[:work] %>
-  <%= submit_tag 'generate csv' %>
+  <%= submit_tag 'generate csv'%>
 <% end %>
+
+<%= button_tag "Download Template", { "onclick" => "template()" } %>
+
+<script type="text/javascript">
+  function template() {
+      document.getElementsByTagName("form")[0].action = "<%= cdm_template_path.gsub("template","template.yml") %>";
+      document.getElementsByName("commit")[0].click();
+      document.getElementsByTagName("form")[0].action = "<%= cdm_generate_path.gsub("generate","generate.csv") %>";
+  }
+
+  inputs = document.getElementsByTagName('option');
+  for (var i = 0; i < inputs.length; i++) {
+      if (inputs[i].hasAttribute('selected')) {
+          inputs[i].selected = true;
+      }
+  }
+</script>

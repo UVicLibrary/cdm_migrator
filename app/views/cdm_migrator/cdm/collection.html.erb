@@ -1,9 +1,9 @@
-<%= form_tag cdm_mappings_path, method: "get" do %>
-<%= select_tag 'collection', options_for_select(@collections) %>
-<br />
-<%= select_tag 'work', options_for_select(@available_concerns) %>
-<br />
-Use Local File Storage: <%= check_box_tag 'file_system', 'true', false %>
-<br />
-<%= submit_tag 'choose mappings' %>
+<%= form_tag cdm_mappings_path, method: "post", multipart: true do %>
+  <table>
+    <tr><td>Collection: </td><td><%= select_tag 'collection', options_for_select(@collections) %></td></tr>
+    <tr><td>Work: </td><td><%= select_tag 'work', options_for_select(@available_concerns) %></td></tr>
+    <tr><td>Use Local File Storage: </td><td><%= check_box_tag 'file_system', 'true', false %></td></tr>
+    <tr><td>Template to Apply: </td><td><%= file_field_tag 'template' %> (.yml file)</td></tr>
+  </table>
+  <%= submit_tag 'choose mappings' %>
 <% end %>

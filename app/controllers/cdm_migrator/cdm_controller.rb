@@ -10,7 +10,7 @@ module CdmMigrator
 		end
 
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
-
+		skip_before_action :verify_authenticity_token
 
 		def generate
 			@h_to_c = {}
@@ -71,12 +71,22 @@ module CdmMigrator
 			if @cdm_dirs
 				get_dirs
 			end
+			@yaml = YAML.load_file(params['template'].tempfile) if params.has_key? 'template'
 		end
 
 		def collection
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionList/json")).body)
 			@collections = json.collect { |c| [c['name'],c['secondary_alias']] }
 			load_concerns
+		end
+
+		def template
+			hashed = params[:mappings].permit!.to_h
+			template = {}
+			hashed.each do |k,v|
+				template[v['cdm']] = {'hydra' => v['hydra'], 'hydrac' => v['hydrac']}
+			end
+			render plain: template.to_yaml, content_type: 'text/yaml'
 		end
 
 		protected
