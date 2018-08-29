@@ -7,6 +7,7 @@ module CdmMigrator
 			@cdm_port = CdmMigrator::Engine.config["cdm_port"]
 			@default_fields = CdmMigrator::Engine.config["default_fields"]
 			@cdm_dirs = CdmMigrator::Engine.config["cdm_dirs"] || false
+			@cdm_api = CdmMigrator::Engine.config["api"]
 		end
 
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
@@ -90,6 +91,16 @@ module CdmMigrator
 		end
 
 		protected
+
+		def api_check
+			if params[:file_system]=="true"
+				"file://#{file_path(rec.first)}"
+			elsif @cdm_api = "server"
+				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{rec.first}"
+			else
+				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"
+			end
+		end
 
 		def standalone
 			Hyrax rescue nil
