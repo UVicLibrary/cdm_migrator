@@ -51,8 +51,8 @@ module CdmMigrator
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
 						url = "file://#{file_path(child['pageptr'])}"
-						url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}" unless params[:file_system]=="true" and @cdm_api=="front" #"file://#{file_path(rec.first)}"
-						url = "#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{child['pageptr']}" unless params[:file_system]=="true" and @cdm_api=="server"
+						url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}" unless params[:file_system]=="true" and @cdm_api!="front" #"file://#{file_path(rec.first)}"
+						url = "#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{child['pageptr']}" unless params[:file_system]=="true" and @cdm_api!="server"
 						csv_lines << create_line("File",url,child_json)
 					end
 				else
