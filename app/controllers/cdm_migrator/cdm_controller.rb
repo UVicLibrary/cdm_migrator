@@ -51,14 +51,16 @@ module CdmMigrator
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
 						url = "file://#{file_path(child['pageptr'])}"
-						url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}" unless params[:file_system]=="true" #"file://#{file_path(rec.first)}"
+						url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{child['pageptr']}.#{child['find']}" if params[:file_system]!="true" && @cdm_api=="front" #"file://#{file_path(rec.first)}"
+						url = "#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{child['pageptr']}" if params[:file_system]!="true" && @cdm_api=="server"
 						csv_lines << create_line("File",url,child_json)
 					end
 				else
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line(params[:work],"",json)
-					url = "file://#{file_path(rec.first)}"
-					url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}" unless params[:file_system]=="true" #"file://#{file_path(rec.first)}"
+					url = "file://#{file_path(rec.first)}" if params[:file_system]=="true"
+					url = "#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}" if params[:file_system]!="true" && @cdm_api=="front" #"file://#{file_path(rec.first)}"
+					url = "#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{rec.first}" if params[:file_system]!="true" && @cdm_api=="server"
 					csv_lines << create_line("File",url,{})
 				end
 			end
