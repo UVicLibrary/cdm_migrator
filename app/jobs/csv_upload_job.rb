@@ -23,6 +23,23 @@ class CsvUploadJob < ActiveJob::Base
 	end
 	
 	private
+
+	def work_form
+		Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
+	end
+
+	def file_form
+		Module.const_get("Hyrax::FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
+	end
+
+	def secondary_terms form_name
+		form_name.terms - form_name.required_fields -
+				[:visibility_during_embargo, :embargo_release_date,
+				 :visibility_after_embargo, :visibility_during_lease,
+				 :lease_expiration_date, :visibility_after_lease, :visibility,
+				 :thumbnail_id, :representative_id, :ordered_member_ids,
+				 :collection_ids, :in_works_ids, :admin_set_id, :files, :source, :member_of_collection_ids]
+	end
 	
 		def create_file_from_url(url, file_name, work, file_data)
 			::FileSet.new(import_url: url, label: file_name) do |fs|
@@ -67,7 +84,7 @@ class CsvUploadJob < ActiveJob::Base
 			@works.each do |work_data|
 				work = Object.const_get(work_data.first.last).new#delete("object_type")).new
 				status_after, embargo_date, lease_date = nil, nil, nil
-				final_work_data = create_data work_data, "Hyrax::GenericWorkForm", work
+				final_work_data = create_data work_data, work_form, work
 				work.apply_depositor_metadata(@current_user)
 				work.attributes = final_work_data
 				work.save
@@ -78,7 +95,7 @@ class CsvUploadJob < ActiveJob::Base
 	  
 		def create_data data, type, object
 		  final_data = {}
-		  accepted_terms = Object.const_get(type).required_fields + Object.const_get(type).secondary_terms
+		  accepted_terms = Object.const_get(type).required_fields + secondary_terms(type)
       data.each do |key, att|
         if(att.nil? || att.empty? || key.to_s.include?("object_type") || !accepted_terms.include?(key.to_sym) )
           next
@@ -110,7 +127,7 @@ class CsvUploadJob < ActiveJob::Base
 			@files[index].each do |file_data|
 				url = file_data.delete('url')
 				title = file_data.delete('title')
-				final_file_data = create_data file_data, "Hyrax::FileSetForm", file
+				final_file_data = create_data file_data, file_form, file
 				create_file_from_url(url, title, work, final_file_data)
 			end
 		end
