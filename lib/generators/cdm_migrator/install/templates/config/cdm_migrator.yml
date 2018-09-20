@@ -3,3 +3,19 @@ cdm_port: 8080
 cdm_dirs:
   dir1: '/dir1/path/goes/here'
   dir2: '/dir2/path/goes/here'
+api: 'front'
+default_fields:
+  - title
+  - creator
+  - keyword
+  - license
+  - resource_type
+  - contributor
+  - description
+  - publisher
+  - date_created
+  - subject
+  - language
+  - identifier
+  - based_near
+  - related_url

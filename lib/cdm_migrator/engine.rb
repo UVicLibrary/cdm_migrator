@@ -1,4 +1,4 @@
-require 'hyrax'
+
 
 module CdmMigrator
   class Engine < ::Rails::Engine
