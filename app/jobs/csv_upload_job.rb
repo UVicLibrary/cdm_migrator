@@ -95,7 +95,7 @@ class CsvUploadJob < ActiveJob::Base
 	  
 		def create_data data, type, object
 		  final_data = {}
-		  accepted_terms = Object.const_get(type).required_fields + secondary_terms(type)
+		  accepted_terms = type.required_fields + secondary_terms(type)
       data.each do |key, att|
         if(att.nil? || att.empty? || key.to_s.include?("object_type") || !accepted_terms.include?(key.to_sym) )
           next
