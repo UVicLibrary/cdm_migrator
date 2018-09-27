@@ -1,6 +1,8 @@
 module CdmMigrator
 	class CdmController < ApplicationController
 
+		require 'csv'
+
 		def initialize
 			super
 			@cdm_url = CdmMigrator::Engine.config["cdm_url"]
@@ -40,7 +42,7 @@ module CdmMigrator
 			else
 				records = json["records"].map { |rec| [rec['pointer'], rec['filetype']] }
 			end
-			headers = CSV.generate_line (['object_type','url']+@terms+@work_only)
+			headers = ::CSV.generate_line (['object_type','url']+@terms+@work_only)
 			csv_lines = [] << headers
 			records.each do |rec|
 				if rec.last == "cpd"
@@ -50,13 +52,13 @@ module CdmMigrator
 					rec_pages = json['page'] || json['node']['page']
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
-						url = api_check
+						url = api_check rec
 						csv_lines << create_line("File",url,child_json)
 					end
 				else
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					csv_lines << create_line(params[:work],"",json)
-					url = api_check
+					url = api_check rec
 					csv_lines << create_line("File",url,{})
 				end
 			end
@@ -90,10 +92,10 @@ module CdmMigrator
 
 		protected
 
-		def api_check
+		def api_check rec
 			if params[:file_system]=="true"
 				"file://#{file_path(rec.first)}"
-			elsif @cdm_api = "server"
+			elsif @cdm_api == "server"
 				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{rec.first}"
 			else
 				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"
@@ -158,7 +160,7 @@ module CdmMigrator
 					line << content.join('|')
 				end
 			end
-			CSV.generate_line line
+			::CSV.generate_line line
 		end
 
 		def file_path pointer
