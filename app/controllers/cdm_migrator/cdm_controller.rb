@@ -3,15 +3,7 @@ module CdmMigrator
 
 		require 'csv'
 
-		def initialize
-			super
-			@cdm_url = CdmMigrator::Engine.config["cdm_url"]
-			@cdm_port = CdmMigrator::Engine.config["cdm_port"]
-			@default_fields = CdmMigrator::Engine.config["default_fields"]
-			@cdm_dirs = CdmMigrator::Engine.config["cdm_dirs"] || false
-			@cdm_api = CdmMigrator::Engine.config["api"]
-		end
-
+		before_action :load_yaml
 		before_action :set_exclusive_fields, only: [:generate, :mappings]
 		skip_before_action :verify_authenticity_token
 
@@ -30,36 +22,36 @@ module CdmMigrator
 				end
 			end
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery/#{params[:collection]}/0/0/filetype/1024/0/0/0/0/0/1/0/json")).body)
-			total_recs = json["pager"]["total"].to_i
+			total_recs = json['pager']['total'].to_i
 			if total_recs > 1024
 				start = 1
 				records = []
 				[0..(total_recs/1024)].each do |index|
 					start = (index*1024) + 1
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("http://#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery/#{params[:collection]}/0/0/filetype/1024/#{start}/0/0/0/0/1/0/json")).body)
-					records << json["records"].map { |rec| [rec['pointer'], rec['filetype']] }
+					records << json['records'].map { |rec| [rec['pointer'], rec['filetype']] }
 				end
 			else
-				records = json["records"].map { |rec| [rec['pointer'], rec['filetype']] }
+				records = json['records'].map { |rec| [rec['pointer'], rec['filetype']] }
 			end
 			headers = ::CSV.generate_line (['object_type','url']+@terms+@work_only)
 			csv_lines = [] << headers
 			records.each do |rec|
-				if rec.last == "cpd"
+				if rec.last == 'cpd'
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
-					csv_lines << create_line(params[:work],"",json)
+					csv_lines << create_line(params[:work],'',json)
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCompoundObjectInfo/#{params[:collection]}/#{rec.first}/json")).body)
 					rec_pages = json['page'] || json['node']['page']
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
 						url = api_check rec
-						csv_lines << create_line("File",url,child_json)
+						csv_lines << create_line('File',url,child_json)
 					end
 				else
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{rec.first}/json")).body)
-					csv_lines << create_line(params[:work],"",json)
+					csv_lines << create_line(params[:work],'',json)
 					url = api_check rec
-					csv_lines << create_line("File",url,{})
+					csv_lines << create_line('File',url,{})
 				end
 			end
 			render plain: csv_lines.join, content_type: 'text/csv'
@@ -69,9 +61,7 @@ module CdmMigrator
 		def mappings
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionFieldInfo/"+params['collection']+'/json')).body)
 			@cdm_terms = json.collect { |c| [c['name'],c['nick']] }
-			if @cdm_dirs
-				get_dirs
-			end
+			get_dirs if @cdm_dirs
 			@yaml = YAML.load_file(params['template'].tempfile) if params.has_key? 'template'
 		end
 
@@ -92,10 +82,24 @@ module CdmMigrator
 
 		protected
 
+		def load_yaml
+			stripped_url = request.base_url.dup.gsub(/https?:\/\//, '').gsub(/:[0-9]*/,'')
+			if CdmMigrator::Engine.config['cdm_api'].key? stripped_url
+				tenant = CdmMigrator::Engine.config['cdm_api'][stripped_url]
+			else
+				tenant = CdmMigrator::Engine.config['cdm_api']['default']
+			end
+			@cdm_url = tenant['url']
+			@cdm_port = tenant['port']
+			@cdm_dirs = tenant['dirs'] || false
+			@cdm_api = tenant['type']
+			@default_fields = CdmMigrator::Engine.config['default_fields']
+		end
+
 		def api_check rec
-			if params[:file_system]=="true"
+			if params[:file_system]=='true'
 				"file://#{file_path(rec.first)}"
-			elsif @cdm_api == "server"
+			elsif @cdm_api == 'server'
 				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{rec.first}"
 			else
 				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"
@@ -117,11 +121,11 @@ module CdmMigrator
 		end
 
 		def work_form
-			Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
+			Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get('Hyrax::Forms::WorkForm')
 		end
 
 		def file_form
-			Module.const_get("Hyrax::FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
+			Module.const_get('Hyrax::FileSetForm') rescue nil || Module.const_get('Hyrax::Forms::FileSetEditForm')
 		end
 
 		def secondary_terms form_name
@@ -155,7 +159,7 @@ module CdmMigrator
 					content.delete_if(&:empty?)
 				end
 				if content.nil? || content.empty? || content == [{}]
-					line << ""
+					line << ''
 				else
 					line << content.join('|')
 				end

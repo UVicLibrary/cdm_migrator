@@ -1,3 +1,4 @@
+<h5>ContentDM API address: <%= @cdm_url %></h5>
 <%= form_tag cdm_mappings_path, method: "post", multipart: true do %>
   <table>
     <tr><td>Collection: </td><td><%= select_tag 'collection', options_for_select(@collections) %></td></tr>
