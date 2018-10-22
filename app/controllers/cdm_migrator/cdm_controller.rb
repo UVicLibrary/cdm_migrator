@@ -44,7 +44,7 @@ module CdmMigrator
 					rec_pages = json['page'] || json['node']['page']
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo/#{params[:collection]}/#{child['pageptr']}/json")).body)
-						url = api_check rec
+						url = api_check rec, child
 						csv_lines << create_line('File',url,child_json)
 					end
 				else
@@ -96,11 +96,12 @@ module CdmMigrator
 			@default_fields = CdmMigrator::Engine.config['default_fields']
 		end
 
-		def api_check rec
+		def api_check rec, child=nil
 			if params[:file_system]=='true'
 				"file://#{file_path(rec.first)}"
 			elsif @cdm_api == 'server'
-				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{rec.first}"
+				cisoptr = child ? child['pageptr'] : rec.first
+				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{cisoptr}"
 			else
 				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"
 			end
