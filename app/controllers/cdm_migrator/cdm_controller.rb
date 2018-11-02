@@ -97,13 +97,15 @@ module CdmMigrator
 		end
 
 		def api_check rec, child=nil
+			cisoptr = child ? child['pageptr'] : rec.first
+			filename = child ? child['pagefile'] : "#{rec.first}.#{rec.last}"
+
 			if params[:file_system]=='true'
 				"file://#{file_path(rec.first)}"
 			elsif @cdm_api == 'server'
-				cisoptr = child ? child['pageptr'] : rec.first
 				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=/#{params[:collection]}&CISOPTR=#{cisoptr}"
 			else
-				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{rec.first}/filename/#{rec.first}.#{rec.last}"
+				"#{@cdm_url}/utils/getfile/collection/#{params[:collection]}/id/#{cisoptr}/filename/#{filename}"
 			end
 		end
 
