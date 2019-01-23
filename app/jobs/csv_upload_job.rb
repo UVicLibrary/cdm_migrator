@@ -2,10 +2,12 @@ class CsvUploadJob < ActiveJob::Base
   queue_as Hyrax.config.ingest_queue_name
   
   
-	def perform(csv, mvs, current_user)
+	def perform(csv, mvs, collection, admin_set, current_user)
 		@current_user = current_user
 		@csv = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
 		@mvs = mvs
+		@collection = Collection.find(collection) rescue nil
+		@admin_set = AdminSet.find(admin_set) rescue nil
 		@works = []
 		@files = {}
 		@csv.each do |row|
@@ -15,6 +17,7 @@ class CsvUploadJob < ActiveJob::Base
 			elsif(type.include? "Work")
 				@works << row
 				@files[@works.length] = []
+				@worktype = type.dup
 			elsif(type.include? "File")
 				row.delete("object_type")
 				@files[@works.length] << row
@@ -26,7 +29,7 @@ class CsvUploadJob < ActiveJob::Base
 	private
 
 	def work_form
-		Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
+		Module.const_get("Hyrax::#{@worktype}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
 	end
 
 	def file_form
@@ -88,6 +91,8 @@ class CsvUploadJob < ActiveJob::Base
 				final_work_data = create_data work_data, work_form, work
 				work.apply_depositor_metadata(@current_user)
 				work.attributes = final_work_data
+				work.member_of_collections = [@collection] if @collection
+				work.admin_set = @admin_set if @admin_set
 				work.save
 				create_files(work, index)
 				index+=1

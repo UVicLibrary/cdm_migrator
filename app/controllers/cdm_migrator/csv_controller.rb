@@ -16,12 +16,19 @@ module CdmMigrator
 
 		def upload
 			#byebug
+			@admin_sets = AdminSet.all.map { |as| [as.title.first, as.id] }
+			@collections = Collection.all.map { |col| [col.title.first, col.id] }
 		end
 
 		def create
 			#byebug
-			csv = CSV.parse(File.read(params[:csv_import][:csv_file].path), headers: true, encoding: 'utf-8')
-			CsvUploadJob.perform_later(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], current_user)
+			dir = Rails.root.join('public', 'uploads', 'csvs')
+			Dir.mkdir(dir) unless Dir.exist?(dir)
+			File.open(dir.join(params[:csv_import][:csv_file].original_filename), 'wb') do |file|
+			  file.write(params[:csv_import][:csv_file].read)
+			end
+			csv = CSV.parse(File.read(dir.join(params[:csv_import][:csv_file].original_filename)), headers: true, encoding: 'utf-8')
+			CsvUploadJob.perform_later(dir.join(params[:csv_import][:csv_file].original_filename).to_s, params[:csv_import][:mvs], params[:collection], params[:admin_set], current_user)
 			#perform(params[:csv_import][:csv_file].path, params[:csv_import][:mvs], current_user)
 			flash[:notice] = "csv successfully uploaded"
 			redirect_to csv_upload_path
@@ -30,6 +37,8 @@ module CdmMigrator
 		def perform(csv, mvs, current_user)
 			@csv = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
 			@mvs = mvs
+			@collection = Collection.find(params[:csv_import][:collection]) rescue nil
+			@admin_set = AdminSet.find(params[:csv_import][:admin_set]) rescue nil
 			@works = []
 			@files = {}
 			@csv.each do |row|
@@ -112,6 +121,8 @@ module CdmMigrator
 					final_work_data = create_data work_data, work_form, work
 					work.apply_depositor_metadata(current_user)
 					work.attributes = final_work_data
+					work.member_of_collections = [@collection] if @collection
+					work.admin_set = @admin_set if @admin_set
 					work.save
 					create_files(work, index)
 					index+=1

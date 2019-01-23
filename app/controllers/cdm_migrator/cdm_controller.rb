@@ -77,7 +77,7 @@ module CdmMigrator
 
 		def collection
 			json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCollectionList/json")).body)
-			@collections = json.collect { |c| [c['name'],c['secondary_alias']] }
+			@collections = json.collect { |c| [c['name'],c['alias']] }
 			load_concerns
 		end
 
