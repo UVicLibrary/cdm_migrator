@@ -3,7 +3,7 @@
 module CdmMigrator
   class Engine < ::Rails::Engine
 
-    isolate_namespace CdmMigrator
+    #isolate_namespace CdmMigrator
     class << self
       
       def config

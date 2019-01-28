@@ -1,6 +1,8 @@
 module CdmMigrator
 	class CsvController < ApplicationController
-
+		helper_method :default_page_title, :admin_host?, :available_translations, :available_works
+		layout 'dashboard'
+		
 		def generate
 			headers = ['type','url']
 			skip = ["id", "head", "tail", "depositor", "date_uploaded", "date_modified", "import_url", "thumbnail_id", "embargo_id", "lease_id", "access_control_id", "representative_id"]
@@ -16,12 +18,14 @@ module CdmMigrator
 
 		def upload
 			#byebug
+			authorize! :create, available_works.first
 			@admin_sets = AdminSet.all.map { |as| [as.title.first, as.id] }
 			@collections = Collection.all.map { |col| [col.title.first, col.id] }
 		end
 
 		def create
 			#byebug
+			authorize! :create, available_works.first
 			dir = Rails.root.join('public', 'uploads', 'csvs')
 			Dir.mkdir(dir) unless Dir.exist?(dir)
 			File.open(dir.join(params[:csv_import][:csv_file].original_filename), 'wb') do |file|
@@ -33,6 +37,8 @@ module CdmMigrator
 			flash[:notice] = "csv successfully uploaded"
 			redirect_to csv_upload_path
 		end
+		
+		private
 
 		def perform(csv, mvs, current_user)
 			@csv = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
@@ -56,7 +62,24 @@ module CdmMigrator
 			create_works
 		end
 
-		private
+		def available_works
+			@available_works ||= Hyrax::QuickClassificationQuery.new(current_user).authorized_models
+		end
+		
+		def default_page_title
+			'CSV Batch Uploader'
+		end
+		
+		def admin_host?
+			false unless Settings.multitenancy.enabled
+		end
+		
+		def available_translations
+			{
+				'en' => 'English',
+				'fr' => 'French'
+			}
+		end
 
 		def work_form
 			Module.const_get("Hyrax::#{params[:work]}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
