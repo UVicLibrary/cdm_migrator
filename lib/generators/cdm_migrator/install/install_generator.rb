@@ -10,7 +10,7 @@ match.split("\n")[1].to_s+
 "		<%= menu.collapsable_section t('CDM Migrator'),\n" \
 "							 icon_class: \"fa fa-map-signs\",\n" \
 "							 id: 'collapseCdmMigrator',\n" \
-"							 open: true do %>\n" \
+"							 open: menu.cdm_migrator_section? do %>\n" \
 "			<%= menu.nav_link(main_app.csv_upload_path) do %>\n"\
 "				<span class=\"fa fa-angle-double-up\"></span> <span class=\"sidebar-action-text\"><%= t('CSV Batch Uploader') %></span>\n" \
 "			<% end %>\n" \
