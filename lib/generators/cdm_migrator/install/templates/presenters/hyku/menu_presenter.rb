@@ -7,6 +7,10 @@ module Hyku
       %w[appearances content_blocks labels features pages].include?(controller_name)
     end
 
+    def cdm_migrator_section?
+      %w[cdm csv].include?(controller_name)
+    end
+    
     # Returns true if the current controller happens to be one of the controllers that deals
     # with roles and permissions.  This is used to keep the parent section on the sidebar open.
     def roles_and_permissions_section?
