@@ -3,7 +3,7 @@
 		<%= menu.collapsable_section t('CDM Migrator'),
 							 icon_class: "fa fa-map-signs",
 							 id: 'collapseCdmMigrator',
-							 open: false do %>
+							 open: menu.cdm_migrator_section? do %>
 			<%= menu.nav_link(main_app.csv_upload_path) do %>
 				<span class="fa fa-angle-double-up"></span> <span class="sidebar-action-text"><%= t('CSV Batch Uploader') %></span>
 			<% end %>
