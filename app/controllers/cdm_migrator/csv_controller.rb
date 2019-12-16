@@ -41,11 +41,13 @@ module CdmMigrator
 			#authorize! :create, available_works.first
 			dir = Rails.root.join('public', 'uploads', 'csvs')
 			FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
-			File.open(dir.join(params[:csv_import][:csv_file].original_filename), 'wb') do |file|
+			time = DateTime.now.strftime('%s')
+			filename = params[:csv_import][:csv_file].original_filename.gsub('.csv',"#{time}.csv")
+			File.open(dir.join(filename), 'wb') do |file|
 			  file.write(params[:csv_import][:csv_file].read)
 			end
-			csv = CSV.parse(File.read(dir.join(params[:csv_import][:csv_file].original_filename)), headers: true, encoding: 'utf-8')
-			CsvUploadJob.perform_later(dir.join(params[:csv_import][:csv_file].original_filename).to_s, params[:csv_import][:mvs], params[:collection], params[:admin_set], current_user)
+			csv = CSV.parse(File.read(dir.join(filename)), headers: true, encoding: 'utf-8')
+			CsvUploadJob.perform_later(dir.join(filename).to_s, params[:csv_import][:mvs], params[:collection], params[:admin_set], current_user)
 			flash[:notice] = "csv successfully uploaded, check this page to see the status while the batch is running"
 			redirect_to csv_my_batches_path
     end
