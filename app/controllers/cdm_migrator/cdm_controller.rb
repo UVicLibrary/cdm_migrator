@@ -1,7 +1,7 @@
 module CdmMigrator
 	class CdmController < ApplicationController
 		helper_method :default_page_title, :admin_host?, :available_translations, :available_works
-		layout 'dashboard' if Hyrax
+		layout 'hyrax/dashboard' if Hyrax
 		require 'csv'
 
 		before_action :load_yaml
@@ -27,7 +27,7 @@ module CdmMigrator
 			if total_recs > 1024
 				start = 1
 				records = []
-				(0..(total_recs/1024)).each do |index|
+				[0..(total_recs/1024)].each do |index|
 					start = (index*1024) + 1
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmQuery#{params[:collection]}/0/0/filetype/1024/#{start}/0/0/0/0/1/0/json")).body)
 					records << json['records'].map { |rec| [rec['pointer'], rec['filetype']] }

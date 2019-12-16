@@ -1,0 +1,19 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  data: MyText
+  upload_date: 2019-12-11 11:38:59
+  message: MyText
+  size: 1
+  progress: 1
+  csv: MyString
+  complete: false
+
+two:
+  data: MyText
+  upload_date: 2019-12-11 11:38:59
+  message: MyText
+  size: 1
+  progress: 1
+  csv: MyString
+  complete: false

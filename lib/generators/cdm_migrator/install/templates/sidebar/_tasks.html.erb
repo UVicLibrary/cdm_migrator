@@ -4,12 +4,16 @@
 							 icon_class: "fa fa-map-signs",
 							 id: 'collapseCdmMigrator',
 							 open: menu.cdm_migrator_section? do %>
+			<%= menu.nav_link(main_app.cdm_start_path) do %>
+				<span class="fa fa-map"></span> <span class="sidebar-action-text"><%= t('CDM Mapping Tool') %></span>
+			<% end %>
+
 			<%= menu.nav_link(main_app.csv_upload_path) do %>
 				<span class="fa fa-angle-double-up"></span> <span class="sidebar-action-text"><%= t('CSV Batch Uploader') %></span>
 			<% end %>
 			
-			<%= menu.nav_link(main_app.cdm_start_path) do %>
-				<span class="fa fa-map"></span> <span class="sidebar-action-text"><%= t('CDM Mapping Tool') %></span>
+			<%= menu.nav_link(main_app.csv_my_batches_path) do %>
+				<span class="fa fa-database"></span> <span class="sidebar-action-text"><%= t('Batches') %></span>
 			<% end %>
 		<% end %>
 	</li>

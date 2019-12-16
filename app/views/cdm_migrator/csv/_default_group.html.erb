@@ -1,0 +1,17 @@
+<table class="table table-striped works-list">
+  <thead>
+  <tr>
+    <th><%= "Name" %></th>
+    <th><%= "Uploaded" %></th>
+    <th><%= "User" %></th>
+    <th><%= "Progress" %></th>
+    <th><%= "Message" %></th>
+    <th><%= "Actions" %></th>
+  </tr>
+  </thead>
+  <tbody>
+  <% batches.each do |batch| %>
+      <%= render 'list_batches', batch: batch %>
+  <% end %>
+  </tbody>
+</table>

@@ -1,0 +1,8 @@
+<ul class="nav nav-tabs" id="my_nav" role="navigation">
+  <li<%= ' class="active"'.html_safe if current_page?(main_app.csv_all_batches_path(locale: nil)) %>>
+    <%= link_to "All CSV Batches", main_app.csv_all_batches_path %>
+  </li>
+  <li<%= ' class="active"'.html_safe if current_page?(main_app.csv_my_batches_path(locale: nil)) %>>
+    <%= link_to "My CSV Batches", main_app.csv_my_batches_path %>
+  </li>
+</ul>

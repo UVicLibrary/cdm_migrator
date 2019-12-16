@@ -21,6 +21,7 @@ $ gem install cdm_migrator
 Finally, run:
 ```bash
 $ rails g cdm_migrator:install
+$ rails db:migrate
 ```
 to insert the yml and add a link to your Hyrax dashboard
 
