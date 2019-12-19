@@ -1,0 +1,21 @@
+<% provide :page_title, "File Path Checker" %>
+
+<h1>File Path Checker</h1>
+
+<!-- <div class="row"> -->
+<p>This tool checks if a file exists at each url in a csv.</p>
+<%= form_tag(check_file_paths_path, remote: true, method: :post, multipart: true, id: "csv-form") do %>
+<div class="input-group">
+  <%= file_field_tag(:file, class: "form-control-file") %>
+  <%= hidden_field_tag :authenticity_token, value: form_authenticity_token %>
+  <%= button_tag(type: :submit, class: "btn btn-large btn-primary", style: "margin-top: 1em;") do %>
+    Check CSV
+  <% end %>
+<% end %>
+</div>
+<!-- </div> -->
+
+<div id="path_list" class="col-md-10 offset-md-1">
+  <%= render 'path_list' %>
+</div>
+

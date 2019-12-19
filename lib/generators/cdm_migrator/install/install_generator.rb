@@ -22,10 +22,13 @@ class CdmMigrator::InstallGenerator < Rails::Generators::Base
             "			<%= menu.nav_link(main_app.cdm_start_path) do %>\n" \
             "				<span class=\"fa fa-map\"></span> <span class=\"sidebar-action-text\"><%= t('CDM Mapping Tool') %></span>\n" \
             "			<% end %>\n" \
+            "                   <%= menu.nav_link(main_app.file_path_checker_path) do %>\n" \
+            "                      <span class=\"fa fa-check-circle\"></span><span>File Path Checker</span>\n" \
+            "                   <% end %>\n" \
             "			<%= menu.nav_link(main_app.csv_upload_path) do %>\n"\
             "				<span class=\"fa fa-angle-double-up\"></span> <span class=\"sidebar-action-text\"><%= t('CSV Batch Uploader') %></span>\n" \
             "			<% end %>\n" \
-            "			<%= menu.nav_link(main_app.csv_my_batches) do %>\n" \
+            "			<%= menu.nav_link(main_app.csv_my_batches_path) do %>\n" \
             "				<span class=\"fa fa-database\"></span> <span class=\"sidebar-action-text\"><%= t('Batches') %></span>\n" \
             "			<% end %>\n" \
             "		<% end %>\n" \
