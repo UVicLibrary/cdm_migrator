@@ -8,7 +8,7 @@
 
 
   <td><%= batch.progress %></td>
-  <td><%= batch.message? ? "View Message" : "No Message" %></td>
+  <td><%= batch.message? ? "<button onclick=\"alert('#{batch.message}');\">View Message</button>".html_safe : "No Message" %></td>
 
   <td>
     <%= link_to(
@@ -16,6 +16,6 @@
             main_app.csv_rerun_path(id: batch.id),
             data: { 'create-type' => 'batch' },
             class: 'btn btn-primary'
-        ) if batch.complete? && (current_user.ability.admin? || current_page?(main_app.csv_my_batches_path(locale: nil))) %>
+        ) if batch.complete? && (current_ability.admin? || current_page?(main_app.csv_my_batches_path(locale: nil))) %>
   </td>
 </tr>

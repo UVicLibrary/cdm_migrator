@@ -15,7 +15,7 @@ module CdmMigrator
         row_number +=1 # Tells user what CSV row the bogus file path is on
         next if row[:url].nil?
         file_path = row[:url]
-        if !File.file?(file_path.gsub("file:///usr/local/rails/vault/tmp/uploads/local_files", "/mnt/qdrive"))
+        unless File.file?(file_path.gsub("file://", ""))
           @path_list[row_number] = file_path
         end
       end
@@ -54,15 +54,11 @@ module CdmMigrator
 		end
 
 		def upload
-			#byebug
-			#authorize! :create, available_works.first
 			@admin_sets = AdminSet.all.map { |as| [as.title.first, as.id] }
 			@collections = Collection.all.map { |col| [col.title.first, col.id] }
 		end
 
 		def create
-			#byebug
-			#authorize! :create, available_works.first
 			dir = Rails.root.join('public', 'uploads', 'csvs')
 			FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
 			time = DateTime.now.strftime('%s')
@@ -77,7 +73,6 @@ module CdmMigrator
     end
 
     def rerun
-      #authorize! :create, available_works.first
       ingest = BatchIngest.find(params[:id]).deep_dup
       ingest.save
       BatchCreateWorksJob.perform_later(ingest, current_user)
