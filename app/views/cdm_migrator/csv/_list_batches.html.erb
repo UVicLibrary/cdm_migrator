@@ -8,7 +8,7 @@
 
 
   <td><%= batch.progress %></td>
-  <td><%= batch.message? ? "<button onclick=\"alert('#{batch.message}');\">View Message</button>".html_safe : "No Message" %></td>
+  <td><%= batch.message? ? "<button onclick=\"alert('#{batch.message.html_safe}');\">View Message</button>".html_safe : "No Message" %></td>
 
   <td>
     <%= link_to(
