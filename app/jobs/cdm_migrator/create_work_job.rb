@@ -2,7 +2,7 @@ module CdmMigrator
   class CreateWorkJob < ActiveJob::Base
     queue_as Hyrax.config.ingest_queue_name
 
-    def perform(ingest_work, user, admin_set_id, collection_id, last_work=false)
+    def perform(ingest_work, user, admin_set_id, collection_id)
       admin_set = ::AdminSet.find(admin_set_id) rescue nil
       collection = ::Collection.find(collection_id) rescue nil
       work = Object.const_get(ingest_work.work_type).new
@@ -13,7 +13,7 @@ module CdmMigrator
       work.admin_set = admin_set if admin_set
       work.date_uploaded = DateTime.now
       work.save
-      BatchCreateFilesJob.perform_later work, ingest_work, user, last_work
+      BatchCreateFilesJob.perform_later work, ingest_work, user
 
     end
   end

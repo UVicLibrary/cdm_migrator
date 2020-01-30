@@ -7,11 +7,14 @@ module CdmMigrator
     end
 
     def progress
-      if complete?
+      return "Complete" if complete?
+      completed = IngestWork.where(batch_ingest_id: id, complete: true ).length
+      if completed==data.length
+        complete=true
+        save
         "Complete"
       else
-        completed = IngestWork.where(batch_ingest_id: id, complete: true ).length.to_s
-        "#{completed}/#{size}"
+        "#{completed.to_s}/#{size}"
       end
     end
 
@@ -20,7 +23,7 @@ module CdmMigrator
     end
 
     def complete?
-      self.complete
+      complete
     end
 
     def message?

@@ -2,7 +2,7 @@ module CdmMigrator
   class CdmIngestFilesJob < ActiveJob::Base
     queue_as Hyrax.config.ingest_queue_name
 
-    def perform(fs, url, user, ingest_work = nil, last_file = false, last_work = false)
+    def perform(fs, url, user, ingest_work = nil, last_file = false)
       if url.include?("http") && File.extname(url).include?("pdf")
         download = open(url)
         dir = Rails.root.join('public', 'uploads', 'csv_pdfs')
@@ -23,7 +23,6 @@ module CdmMigrator
         ImportUrlJob.perform_now(fs, log(user))
       end
       ingest_work.update_attribute('complete', true) if last_file
-      BatchIngest.find(ingest_work.id).update_attribute('complete', true) if last_work
     end
 
     def log(user)
