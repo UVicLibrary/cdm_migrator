@@ -121,7 +121,7 @@ module CdmMigrator
 			filename = child ? child['pagefile'] : "#{rec.first}.#{rec.last}"
 
 			if params[:file_system]=='true'
-				"file://#{file_path(rec.first)}"
+				"file://#{file_path(cisoptr)}"
 			elsif @cdm_api == 'server'
 				"#{@cdm_url}:#{@cdm_port}/cgi-bin/showfile.exe?CISOROOT=#{params[:collection]}&CISOPTR=#{cisoptr}"
 			else
