@@ -16,10 +16,11 @@ module CdmMigrator
         IO.copy_stream(download, url)
         url = "file://"+url.to_s
       end
-      uri = URI.parse(url.gsub(' ','%20'))
+      uri = URI.parse(url.gsub(' ','%20').gsub(/[\[\]@#\$\*{}]/, ""))
       if uri.scheme == 'file'
-        IngestLocalFileJob.perform_now(fs, uri.path.gsub('%20',' '), user)
+        IngestLocalFileJob.perform_now(fs, url.gsub('file://',''), user)
       else
+        URI.parse(url.gsub(' ','%20'))
         ImportUrlJob.perform_now(fs, log(user))
       end
       ingest_work.update_attribute('complete', true) if last_file
