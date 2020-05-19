@@ -19,6 +19,10 @@
 			<%= menu.nav_link(main_app.csv_my_batches_path) do %>
 				<span class="fa fa-database"></span> <span class="sidebar-action-text"><%= t('Batches') %></span>
 			<% end %>
+
+			<%= menu.nav_link(main_app.csv_edit_path) do %>
+				<span class="fa fa-angle-double-up"></span> <span class="sidebar-action-text"><%= t('Batch Update') %></span>
+			<% end %>
 		<% end %>
 	</li>
 
