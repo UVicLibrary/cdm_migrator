@@ -9,6 +9,12 @@ module CdmMigrator
       #status_after, embargo_date, lease_date = nil, nil, nil
       work.apply_depositor_metadata(user)
       work.attributes = ingest_work.data
+      if ingest_work.data.has_key? 'downloadable'
+        # Convert string to boolean
+        work.downloadable = ActiveModel::Type::Boolean.new.cast(ingest_work.data['downloadable'])
+      elsif work.attributes.include? 'downloadable' # Set work to downloadable by default
+        work.downloadable = true
+      end
       work.member_of_collections = [collection] if collection
       work.admin_set = admin_set if admin_set
       work.date_uploaded = DateTime.now
