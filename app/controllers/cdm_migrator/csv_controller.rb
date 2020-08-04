@@ -4,15 +4,29 @@ module CdmMigrator
     include ActionView::Helpers::UrlHelper
     layout 'hyrax/dashboard' if Hyrax
     before_action :authenticate, except: :index
+    before_action :load_config, only: [:csv_checker, :check_csv]
 
-    def file_path_checker
+    def load_config
+      tenant = Account.find_by(tenant: Apartment::Tenant.current).name
+      if CdmMigrator::Engine.config['csv_checker'].has_key?(tenant)
+        tenant = CdmMigrator::Engine.config['csv_checker'][tenant]
+        @edtf_fields = tenant['edtf_fields'].map(&:to_sym)
+        @uri_fields = tenant['valid_uri_fields'].map(&:to_sym)
+        @separator = tenant['multi_value_separator']
+        @separator_fields = tenant['separator_fields'].map(&:to_sym)
+        @path_to_drive = tenant['path_to_drive']
+      else
+        raise "Cdm Migrator couldn't find this tenant. Is it configured in config/cdm_migrator.yml?"
+      end
+    end
+
+    def csv_checker
       if params[:file]
-        check_paths params[:file].path
-
-        if @path_list.blank?
-          flash[:notice] = "All file paths are valid."
+        check_csv params[:file].path
+        if @error_list.blank?
+          flash[:notice] = "All data are valid."
         else
-          flash[:error] = "Cdm Migrator couldn't find files at the following urls. Please correct the paths and try again."
+          flash[:error] = "The CSV Checker found some errors in the CSV. Please correct them and check again."
         end
       end
     end
@@ -41,9 +55,9 @@ module CdmMigrator
       File.open(csv, 'wb') do |file|
         file.write(params[:csv_import][:csv_file].read)
       end
-      check_paths csv
-      if @path_list.present?
-        flash[:error] = "some file paths are invalid"
+      check_csv csv
+      if @error_list.present?
+        flash[:error] = "Cdm Migrator found some problems with the CSV. Use the CSV Checker for more details."
       end
       parse_csv(csv, params[:csv_import][:mvs])
 
@@ -203,19 +217,78 @@ module CdmMigrator
         end
       end
 
-      def check_paths csv_file
-        row_number = 1 # +1 offset to account for csv headers
-        @path_list = {}
+    def check_csv csv_file
+      row_number = 1
+      @error_list = {}
+      load_config
+      check_mounted_drive if @path_to_drive.present?
 
-        CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
-          row_number += 1 # Tells user what CSV row the bogus file path is on
-          next if row[:url].nil?
-          file_path = row[:url]
-          unless File.file?(file_path.gsub("file://", ""))
-            @path_list[row_number] = file_path
+      CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
+        row_number +=1 # Tells user what CSV row the error is on
+        if row[:object_type].include? "Work"
+          check_edtf(row_number, row) if @edtf_fields.present?
+          check_uris(row_number, row) if @uri_fields.present?
+          check_separator(row_number, row) if @separator.present? and @separator_fields.present?
+        elsif row[:object_type] == "File"
+          check_file_path(row_number, row[:url])
+        else
+          @error_list[row_number] = { "object_type" => "No or unknown object type. Please give a valid type (e.g. GenericWork, File)." }
+        end
+        @error_list.delete_if { |key, value| value.blank? } # Data are valid, no need to print the row
+      end
+    end
+
+    def check_mounted_drive
+      drive_address = @path_to_drive
+      unless Dir.exist?(drive_address) and !Dir[drive_address].empty?
+        flash[:alert] = "The CSV Checker can't find the mounted drive to check file paths, so some paths may be mislabelled as incorrect. Please contact the administrator or try again later."
+      end
+    end
+
+    def check_file_path(row_number, file_path)
+      if file_path.nil?
+        @error_list[row_number] = { "url" => "url is blank." }
+      elsif File.file?(file_path.gsub("file://", "")) == false
+        @error_list[row_number] = { "url" => "No file found at #{file_path}" }
+      end
+    end
+
+    def check_edtf(row_number, row)
+      edtf_fields = @edtf_fields
+      edtf_errors = edtf_fields.each_with_object({}) do |field, hash|
+        if Date.edtf(row[field]) == nil and row[field] != "unknown"
+          hash[field.to_s] = "Blank or not a valid EDTF date."
+        end
+      end
+      @error_list[row_number] = edtf_errors
+    end
+
+    # <Example: should be http://rightsstatements.org/vocab/etc. NOT https://rightsstatements.org/page/etc.
+    def check_uris(row_number, row)
+      uri_fields = @uri_fields
+      uri_errors = uri_fields.each_with_object({}) do |field, hash|
+        if row[field].include? "page"
+          hash[field.to_s] = "Links to page instead of URI. (e.g. https://rightsstatements.org/page/etc. instead of http://rightsstatements.org/vocab/etc.)"
+        end
+      end
+      @error_list[row_number].merge!(uri_errors)
+    end
+
+    # Check multi-value separators
+    def check_separator(row_number, row)
+      uri_fields = @separator_fields
+      separator = @separator
+      separator_errors = uri_fields.each_with_object({}) do |field, hash|
+        value = row[field]
+        if value.present?
+          URI.extract(value).each { |uri| value.gsub!(uri, '') }
+          unless value.split("").all?(separator) # Check if remaining characters are the correct separator
+            hash[field.to_s] = "May contain the wrong multi-value separator (i.e. not #{separator})."
           end
         end
       end
+      @error_list[row_number].merge!(separator_errors)
+    end
 
       def default_page_title
         'CSV Batch Uploader'

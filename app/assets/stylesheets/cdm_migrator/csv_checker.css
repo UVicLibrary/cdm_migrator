@@ -1,0 +1,37 @@
+.csv-collapse-link.collapsed {
+    display: inline-block;
+    vertical-align: top;
+}
+
+#csv-collapse-link-text::after {
+    content: "❯";
+    display: inline-block;
+    font-size: smaller;
+    right: 15px;
+    transform: rotate(90deg);
+    margin-left: 0.5em;
+}
+
+.collapsed #csv-collapse-link-text::after {
+    transform: rotate(0deg);
+    transition: transform 0.1s ease;
+    margin-left: 2px;
+    vertical-align: top;
+}
+
+#errors-explanation ul li {
+    list-style-type: none;
+    margin-bottom: 2px;
+}
+
+#errors-explanation ul {
+    padding-left: 0;
+}
+
+#errors-explanation {
+    margin-top: 5px;
+}
+
+#csv-form {
+    margin-top: 1em;
+}

@@ -35,3 +35,15 @@ default_fields:
   - identifier
   - based_near
   - related_url
+csv_checker:
+  tenant1:
+    edtf_fields:
+      - date_created
+    valid_uri_fields:
+      - rights_statement
+      - genre
+    separator_fields:
+      - subject
+    multi_value_separator: '|'
+    path_to_drive: #'/mnt/drive' Optional path to mounted drive
+  # tenant2:

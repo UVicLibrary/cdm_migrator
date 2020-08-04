@@ -9,8 +9,8 @@ Rails.application.routes.draw do
   post '/cdm_migrator/export', to: 'cdm_migrator/csv#export', as: 'csv_export'
   post '/cdm_migrator/update', to: 'cdm_migrator/csv#update', as: 'csv_update'
 
-  get '/cdm_migrator/file_path_checker', to: 'cdm_migrator/csv#file_path_checker', as: 'file_path_checker'
-  post '/cdm_migrator/file_path_checker', to: 'cdm_migrator/csv#file_path_checker', as: 'check_file_paths'
+  get '/cdm_migrator/csv_checker', to: 'cdm_migrator/csv#csv_checker', as: 'csv_checker'
+  post '/cdm_migrator/csv_checker', to: 'cdm_migrator/csv#csv_checker', as: 'check_csv'
 
   get '/cdm_migrator/collection', to: 'cdm_migrator/cdm#collection', as: 'cdm_start'
   post '/cdm_migrator/mappings/', to: 'cdm_migrator/cdm#mappings', as: 'cdm_mappings'
