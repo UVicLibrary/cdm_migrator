@@ -27,11 +27,12 @@ to insert the yml and add a link to your Hyrax dashboard
 
 ## Usage
 1. Add your ContentDM url and api port to the cdm_migrator.yml file.
-2. Navigate to the *cdm_migrator/collection* url to select your contentdm collection and what type of work you want to export it to and click "choose mappings".
-3. Map the ContentDM fields to your Hyrax work and file fields\* and click "generate CSV".
-4. Refine the CSV as you see fit.
-5. Navigate to the *cdm_migrator/upload* url; choose your multi-value seperator (default is |) and upload your CSV file.
-6. Done.
+2. Configure the CSV Checker with the appropriate fields, paths, or multi-value separator (in cdm_migrator.yml).
+3. Navigate to the *cdm_migrator/collection* url to select your contentdm collection and what type of work you want to export it to and click "choose mappings".
+4. Map the ContentDM fields to your Hyrax work and file fields\* and click "generate CSV".
+5. Refine the CSV as you see fit. Optional: go to *cdm_migrator/csv_checker* and upload it to validate metadata fields and/or file paths.
+6. Navigate to the *cdm_migrator/upload* url; choose your multi-value separator (default is |) and upload your CSV file.
+7. Done.
 
 \* cdm_migrator uses the generated Hyrax forms (ex. Hyrax::Forms::GenericWorkForm) in your host application to obtain it's terms for mapping. If you have added terms to your FileSet model extend the Hyrax::Forms::FileSetEditForm with Hyrax::FileSetForm in your host application so that the changes will be detected by the migrator. You can also add a list of fields in the yml file, under "default fields".
 
