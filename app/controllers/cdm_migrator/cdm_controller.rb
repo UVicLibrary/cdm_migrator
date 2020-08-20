@@ -104,10 +104,10 @@ module CdmMigrator
 
 		def load_yaml
 			stripped_url = request.base_url.dup.gsub(/https?:\/\//, '').gsub(/:[0-9]*/,'')
-			if CdmMigrator::Engine.config['cdm_api'].key? stripped_url
-				tenant = CdmMigrator::Engine.config['cdm_api'][stripped_url]
+			if CdmMigrator::Engine.config['tenant_settings'].key? stripped_url
+				tenant = CdmMigrator::Engine.config['tenant_settings'][stripped_url]['cdm_api']
 			else
-				tenant = CdmMigrator::Engine.config['cdm_api']['default']
+				tenant = CdmMigrator::Engine.config['tenant_settings']['default']['cdm_api']
 			end
 			@cdm_url = tenant['url']
 			@cdm_port = tenant['port']

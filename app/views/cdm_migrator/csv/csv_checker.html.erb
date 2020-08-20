@@ -1,31 +1,37 @@
 <% provide :page_title, "CSV Checker" %>
 
+<%#= flash[:alert].join("<br/>") if flash[:alert] %>
+
 <h1>CSV Checker</h1>
 
 <!-- <div class="row"> -->
 <p>This tool validates CSV data and creates a table listing any errors.</p>
+
 <a role="button" class="collapse-toggle collapsed csv-collapse-link" data-toggle="collapse" data-target="#errors-explanation" aria-expanded="false">
   <span id="csv-collapse-link-text">Expand for more details</span>
 </a>
 <div class="collapse" id="errors-explanation">
   <ul>
     <li><strong>File paths: </strong>The url field contains a valid path to a file.</li>
+    <li><strong>Multi-value separator: </strong>Configured fields with URIs contain the right separator character (e.g. |).</li>
     <% if @path_to_drive.present? %>
-      <li><strong>Mounted drive: </strong>A mounted directory exists and is not empty.</li>
+      <li><strong>Mounted drive: </strong>A mounted directory (folder) exists and is not empty.</li>
     <% end %>
     <% if @edtf_fields.present? %>
-      <li><strong>EDTF dates: </strong>Valid <a href="https://www.loc.gov/standards/datetime/" target="_blank">EDTF</a> dates or "unknown" in configured fields.</li>
+      <li><strong>EDTF dates: </strong>Configured fields contain valid <a href="https://www.loc.gov/standards/datetime/" target="_blank">EDTF</a> dates or "unknown."</li>
     <% end %>
     <% if @uri_fields.present? %>
-      <li><strong>Valid URIs ("page" vs "vocab"): </strong>URIs link to the "vocab" address rather than the "page" address for configured fields. For example, rights_statement should be "http://rightsstatement.org/vocab/..." and not "https://rightsstatement.org/page/..."</li>
-    <% end %>
-    <% if @separator.present? and @separator_fields.present? %>
-      <li><strong>Multi-value separator: </strong>Configured fields with URIs contain the right separator character (e.g. <%= @separator %>).</li>
+      <li><strong>Valid URIs ("page" vs "vocab"): </strong>Configured fields with URIs link to the "vocab" address rather than the "page" address. For example, rights_statement should be "http://rightsstatement.org/vocab/..." and not "https://rightsstatement.org/page/..."</li>
     <% end %>
   </ul>
 </div>
+
+
+
 <%= form_tag(check_csv_path, remote: true, method: :post, multipart: true, id: "csv-form") do %>
   <div class="input-group">
+    <%= label_tag :multi_value_separator %>
+    <%= text_field_tag(:multi_value_separator, @separator, size: 1) %>
     <%= file_field_tag(:file, class: "form-control-file") %>
     <%= hidden_field_tag :authenticity_token, value: form_authenticity_token %>
     <%= button_tag(type: :submit, class: "btn btn-large btn-primary", style: "margin-top: 1em;") do %>

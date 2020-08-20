@@ -4,21 +4,7 @@ module CdmMigrator
     include ActionView::Helpers::UrlHelper
     layout 'hyrax/dashboard' if Hyrax
     before_action :authenticate, except: :index
-    before_action :load_config, only: [:csv_checker, :check_csv]
-
-    def load_config
-      tenant = Account.find_by(tenant: Apartment::Tenant.current).name
-      if CdmMigrator::Engine.config['csv_checker'].has_key?(tenant)
-        tenant = CdmMigrator::Engine.config['csv_checker'][tenant]
-        @edtf_fields = tenant['edtf_fields'].map(&:to_sym)
-        @uri_fields = tenant['valid_uri_fields'].map(&:to_sym)
-        @separator = tenant['multi_value_separator']
-        @separator_fields = tenant['separator_fields'].map(&:to_sym)
-        @path_to_drive = tenant['path_to_drive']
-      else
-        raise "Cdm Migrator couldn't find this tenant. Is it configured in config/cdm_migrator.yml?"
-      end
-    end
+    before_action :load_config, only: :csv_checker
 
     def csv_checker
       if params[:file]
@@ -217,10 +203,28 @@ module CdmMigrator
         end
       end
 
+    def load_config
+      tenant = Account.find_by(tenant: Apartment::Tenant.current).cname
+      if CdmMigrator::Engine.config['tenant_settings'].has_key?(tenant)
+        settings = CdmMigrator::Engine.config['tenant_settings'][tenant]['csv_checker']
+        if settings.present?
+          # .map will throw an error if settings[key] has no value
+          @edtf_fields = settings['edtf_fields'].map(&:to_sym) if settings['edtf_fields']
+          @uri_fields = settings['valid_uri_fields'].map(&:to_sym) if settings['valid_uri_fields']
+          @separator = settings['multi_value_separator']
+          @separator_fields = settings['separator_fields'].map(&:to_sym) if settings['separator_fields']
+          @path_to_drive = settings['path_to_drive']
+        else
+          raise "Cdm Migrator couldn't find any configured settings. Are they in cdm_migrator.yml?"
+        end
+      else
+        raise "Cdm Migrator couldn't find this tenant. Is it configured?"
+      end
+    end
+
     def check_csv csv_file
       row_number = 1
       @error_list = {}
-      load_config
       check_mounted_drive if @path_to_drive.present?
 
       CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
@@ -228,7 +232,16 @@ module CdmMigrator
         if row[:object_type].include? "Work"
           check_edtf(row_number, row) if @edtf_fields.present?
           check_uris(row_number, row) if @uri_fields.present?
-          check_separator(row_number, row) if @separator.present? and @separator_fields.present?
+          if params[:multi_value_separator].present? and @separator_fields.present?
+            check_separator(row_number, row, params[:multi_value_separator])
+          else
+            alert_message = "No multi-value separator character was selected or no fields were configured. CSV Checker didn't check for valid separators."
+            if flash[:alert] and flash[:alert].exclude?(alert_message) # Only add this message once, rather than per line
+              flash[:alert] << alert_message
+            elsif flash[:alert].blank?
+              flash[:alert] = Array.wrap(alert_message)
+            end
+          end
         elsif row[:object_type] == "File"
           check_file_path(row_number, row[:url])
         else
@@ -241,7 +254,7 @@ module CdmMigrator
     def check_mounted_drive
       drive_address = @path_to_drive
       unless Dir.exist?(drive_address) and !Dir[drive_address].empty?
-        flash[:alert] = "The CSV Checker can't find the mounted drive to check file paths, so some paths may be mislabelled as incorrect. Please contact the administrator or try again later."
+        flash[:alert] = "CSV Checker can't find the mounted drive to check file paths, so some paths may be mislabelled as incorrect. Please contact the administrator or try again later."
       end
     end
 
@@ -275,15 +288,14 @@ module CdmMigrator
     end
 
     # Check multi-value separators
-    def check_separator(row_number, row)
+    def check_separator(row_number, row, character)
       uri_fields = @separator_fields
-      separator = @separator
       separator_errors = uri_fields.each_with_object({}) do |field, hash|
         value = row[field]
         if value.present?
           URI.extract(value).each { |uri| value.gsub!(uri, '') }
-          unless value.split("").all?(separator) # Check if remaining characters are the correct separator
-            hash[field.to_s] = "May contain the wrong multi-value separator (i.e. not #{separator})."
+          unless value.split("").all?(character) # Check if remaining characters are the correct separator
+            hash[field.to_s] = "May contain the wrong multi-value separator (i.e. not #{character})."
           end
         end
       end
