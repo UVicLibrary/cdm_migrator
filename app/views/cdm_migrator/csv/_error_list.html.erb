@@ -1,0 +1,21 @@
+<% if @error_list && @error_list.any? %>
+  <%#= @error_list.inspect %>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th scope="col" style="min-width: 100px;">Line No.</th>
+      <th scope="col" style="margin-right: 0.5em;">Column(s)</th>
+      <th scope="col">Issue</th>
+    </tr>
+    </thead>
+    <tbody>
+    <% @error_list.keys.each do |line_number| %>
+      <tr>
+        <td><%= line_number %></td>
+        <td><%= @error_list[line_number].keys.join("<br />").html_safe %></td>
+        <td><%= @error_list[line_number].values.join("<br />").html_safe %></td>
+      </tr>
+    <% end %>
+    </tbody>
+  </table>
+<% end %>

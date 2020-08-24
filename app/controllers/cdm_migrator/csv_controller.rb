@@ -294,7 +294,7 @@ module CdmMigrator
         value = row[field]
         if value.present?
           URI.extract(value).each { |uri| value.gsub!(uri, '') }
-          unless value.split("").all?(character) # Check if remaining characters are the correct separator
+          unless value.split("").all? { |sep| sep == character } # Check if remaining characters are the correct separator
             hash[field.to_s] = "May contain the wrong multi-value separator (i.e. not #{character})."
           end
         end
