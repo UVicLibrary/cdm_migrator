@@ -117,6 +117,7 @@ module CdmMigrator
       solr = RSolr.connect url: Account.find_by(tenant: Apartment::Tenant.current).solr_endpoint.url
       response = solr.get 'select', params: {
           q: "member_of_collection_ids_ssim:#{params[:collection_id]}",
+          rows: 3400,
           fl: "id"
       }
       unless response['response']['docs'].empty? || response['response']['docs'][0].empty?
@@ -269,11 +270,47 @@ module CdmMigrator
     def check_edtf(row_number, row)
       edtf_fields = @edtf_fields
       edtf_errors = edtf_fields.each_with_object({}) do |field, hash|
-        if Date.edtf(row[field]) == nil and row[field] != "unknown"
-          hash[field.to_s] = "Blank or not a valid EDTF date."
+        temp_date = row[field]
+        # modify date so that the interval encompasses the years on the last interval date
+        temp_date = temp_date.gsub('/..','').gsub('%','?~').gsub(/\/$/,'')
+        date = temp_date.include?("/") ? temp_date.gsub(/([0-9]+X+\/)([0-9]+)(X+)/){"#{$1}"+"#{$2.to_i+1}"+"#{$3}"}.gsub("X","u") : temp_date
+        date = date.gsub("XX-","uu-").gsub("X-", "u-").gsub('XX?','uu').gsub('X?', 'u').gsub('u?','u').gsub('?','')
+        # edtf has trouble with year-month (e.g. "19uu-12") or year-season strings (e.g. "190u-23")
+        # that contain unspecified years, or intervals containing the above ("19uu-22/19uu-23", etc.).
+        # So we check for/create exceptions.
+        # Check for season interval
+        if Date.edtf(date) == nil and date != "unknown" # Accept season intervals
+          unless is_season?(date.split("/").first) and is_season?(date.split("/").second)
+            # If an interval then, check each date individually
+            if date.include?("/")
+              dates = date.split("/")
+            else
+              dates = [date]
+            end
+            #byebug
+            dates.each do |d|
+              # Dates with 'u' in the last digit of the year return invalid when in format YYYY-MM
+              # So we flub day specifity before checking again if the date is valid
+              unless Date.edtf(d + '-01') # Date.edtf('193u-03-01') returns valid
+                if match = d[/\d{3}u/] or match = d[/\d{2}u{2}-[2][1-4]/] # edtf can't parse single u in year (e.g. 192u) or uu in YYYY-SS (e.g. 19uu-21), so we replace it
+                  d.gsub!(match, match.gsub("u","0"))
+                  unless Date.edtf(d)
+                    hash[field.to_s] = "Blank or not a valid EDTF date."
+                  end
+                else
+                  hash[field.to_s] = "Blank or not a valid EDTF date."
+                end
+              end
+            end
+          end
         end
+
       end
       @error_list[row_number] = edtf_errors
+    end
+
+    def is_season?(date)
+      Date.edtf(date).class == EDTF::Season
     end
 
     # <Example: should be http://rightsstatements.org/vocab/etc. NOT https://rightsstatements.org/page/etc.
