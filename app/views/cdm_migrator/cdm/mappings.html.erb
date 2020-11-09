@@ -30,7 +30,7 @@ border:1px solid black;
     </tr>
   <% end %>
   </table>
-  <%= select_tag "mappings_url", options_for_select(@dirs) if @cdm_dirs %><%# .sort { |x,y| x[0].downcase <=> y[0].downcase } %>
+  <%= select_tag "mappings_url", options_for_select(@dirs.sort { |x,y| x[0].downcase <=> y[0].downcase }) if @cdm_dirs %>
   <%= hidden_field_tag "work", params[:work] %>
   <%= submit_tag 'generate csv'%>
 <% end %>
