@@ -206,8 +206,6 @@ module CdmMigrator
 			@cdm_dirs.each do |name, dir|
 				ent = Dir.entries(dir).select {|entry| File.directory? File.join(dir,entry) and !(entry =='.' || entry == '..') }
 				ent = ent.map { |url| ["#{name}/#{url}", "#{dir}/#{url}"] }
-				# Normalize all dir names to lower case and then sort them alphabetically
-				ent = ent.sort { |x,y| x[0].downcase <=> y[0].downcase }
 				@dirs += ent
 			end
 		end
