@@ -234,7 +234,7 @@ module CdmMigrator
           check_edtf(row_number, row) if @edtf_fields.present?
           check_uris(row_number, row) if @uri_fields.present?
           if params[:multi_value_separator].present? and @separator_fields.present?
-            check_separator(row_number, row, params[:multi_value_separator])
+            check_multi_val_fields(row_number, row, params[:multi_value_separator])
           else
             alert_message = "No multi-value separator character was selected or no fields were configured. CSV Checker didn't check for valid separators."
             if flash[:alert] and flash[:alert].exclude?(alert_message) # Only add this message once, rather than per line
@@ -287,7 +287,6 @@ module CdmMigrator
             else
               dates = [date]
             end
-            #byebug
             dates.each do |d|
               # Dates with 'u' in the last digit of the year return invalid when in format YYYY-MM
               # So we flub day specifity before checking again if the date is valid
@@ -325,14 +324,27 @@ module CdmMigrator
     end
 
     # Check multi-value separators
-    def check_separator(row_number, row, character)
+    def check_multi_val_fields(row_number, row, character)
       uri_fields = @separator_fields
       separator_errors = uri_fields.each_with_object({}) do |field, hash|
         value = row[field]
-        if value.present?
-          URI.extract(value).each { |uri| value.gsub!(uri, '') }
-          unless value.split("").all? { |sep| sep == character } # Check if remaining characters are the correct separator
-            hash[field.to_s] = "May contain the wrong multi-value separator (i.e. not #{character})."
+        # Check for leading or trailing spaces
+        if value.match? %r{ #{Regexp.escape(character)}|#{Regexp.escape(character)} }
+          hash[field.to_s] = "Contains leading or trailing whitespace around multi-value separator."
+        end
+        values.each do |val|
+          if val.match?(URI.regexp) # Val should be URI
+            remainder = val.gsub(val.match(URI.regexp)[0],'')
+            unless remainder.blank?
+              hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
+            end
+          else # Or val should be string
+            invalid_chars = ["\\"]
+            # Make exceptions for backslashes that are part of whitespace characters
+            # by deleting them before checking for stray \s
+            if val.delete("\t\r\n\s\n").match? Regexp.union(invalid_chars)
+              hash[field.to_s] = "May contain an invalid character such as #{invalid_chars.to_sentence(last_word_connector: ", or ")}."
+            end
           end
         end
       end
