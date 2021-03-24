@@ -43,6 +43,8 @@ module CdmMigrator
 					csv_lines << create_line(params[:work],'',json)
 					json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetCompoundObjectInfo#{params[:collection]}/#{rec.first}/json")).body)
 					rec_pages = json['page'] || json['node']['page']
+					# Fix bug for compound objects with a single page/child: Cdm Migrator expects an array and gets a hash instead, so we wrap the hash in an array
+					rec_pages = Array.wrap(rec_pages) if rec_pages.class == Hash
 					rec_pages.each do |child|
 						child_json = JSON.parse(Net::HTTP.get_response(URI.parse("#{@cdm_url}:#{@cdm_port}/dmwebservices/index.php?q=dmGetItemInfo#{params[:collection]}/#{child['pageptr']}/json")).body)
 						url = api_check rec, child

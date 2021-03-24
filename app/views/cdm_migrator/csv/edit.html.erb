@@ -2,10 +2,9 @@
 <h1><span class="fa fa-map"></span> Export </h1>
 
 <%= form_tag main_app.csv_export_path, method: :post do %>
-  <%= select_tag 'collection_id', options_for_select(@collections), include_blank: true %>
+  <%= select_tag 'collection_id', options_for_select(@collections.sort { |x,y| x[0].downcase <=> y[0].downcase }), include_blank: true %>
   <%= submit_tag "Download CSV", class: 'btn btn-primary' %>
 <% end %>
-
 <h1><span class="fa fa-map"></span> Update </h1>
 
 <%= form_for :csv_update, url: csv_update_path do |f| %>

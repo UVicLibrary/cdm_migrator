@@ -317,7 +317,7 @@ module CdmMigrator
     def check_uris(row_number, row)
       uri_fields = @uri_fields
       uri_errors = uri_fields.each_with_object({}) do |field, hash|
-        if row[field].include? "page"
+        if row[field] and row[field].include? "page"
           hash[field.to_s] = "Links to page instead of URI. (e.g. https://rightsstatements.org/page/etc. instead of http://rightsstatements.org/vocab/etc.)"
         end
       end
@@ -328,23 +328,25 @@ module CdmMigrator
     def check_multi_val_fields(row_number, row, character)
       uri_fields = @separator_fields
       separator_errors = uri_fields.each_with_object({}) do |field, hash|
-        value = row[field]
-        # Check for leading or trailing spaces
-        if value.match %r{ #{Regexp.escape(character)}|#{Regexp.escape(character)} }
-          hash[field.to_s] = "Contains leading or trailing whitespace around multi-value separator."
-        end
-        values.each do |val|
-          if val.match(URI.regexp) # Val should be URI
-            remainder = val.gsub(val.match(URI.regexp)[0],'')
-            unless remainder.blank?
-              hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
-            end
-          else # Or val should be string
-            invalid_chars = ["\\"]
-            # Make exceptions for backslashes that are part of whitespace characters
-            # by deleting them before checking for stray \s
-            if val.delete("\t\r\n\s\n").match Regexp.union(invalid_chars)
-              hash[field.to_s] = "May contain an invalid character such as #{invalid_chars.to_sentence(last_word_connector: ", or ")}."
+        if value = row[field]
+          # Check for leading or trailing spaces
+          if value.match %r{ #{Regexp.escape(character)}|#{Regexp.escape(character)} }
+            hash[field.to_s] = "Contains leading or trailing whitespace around multi-value separator."
+          end
+          values = value.split(character).map(&:strip)
+          values.each do |val|
+            if val.match(URI.regexp) # Val should be URI
+              remainder = val.gsub(val.match(URI.regexp)[0],'')
+              unless remainder.blank?
+                hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
+              end
+            else # Or val should be string
+              invalid_chars = ["\\"]
+              # Make exceptions for backslashes that are part of whitespace characters
+              # by deleting them before checking for stray \s
+              if val.delete("\t\r\n\s\n").match Regexp.union(invalid_chars)
+                hash[field.to_s] = "May contain an invalid character such as #{invalid_chars.to_sentence(last_word_connector: ", or ")}."
+              end
             end
           end
         end

@@ -10,8 +10,8 @@
     <%= select_tag "admin_set", options_for_select(@admin_sets), :include_blank => true %>
     <br />
     <%= f.label 'Collection:' %>
-    <%= select_tag "collection", options_for_select(@collections), :include_blank => true %>
-    <br />
+    <%= select_tag "collection", options_for_select(@collections.sort { |x,y| x[0].downcase <=> y[0].downcase }), :include_blank => true %>
+		<br />
 	<%= f.submit 'Save' %>
 <% end %>
 <br />
