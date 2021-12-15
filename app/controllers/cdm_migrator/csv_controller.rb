@@ -224,17 +224,16 @@ module CdmMigrator
     end
 
     def check_csv csv_file
-      row_number = 1
+      #row_number = 1
       @error_list = {}
       check_mounted_drive if @path_to_drive.present?
 
       CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
-        row_number +=1 # Tells user what CSV row the error is on
         if row[:object_type].include? "Work"
-          check_edtf(row_number, row) if @edtf_fields.present?
-          check_uris(row_number, row) if @uri_fields.present?
+          check_edtf($., row) if @edtf_fields.present?
+          check_uris($., row) if @uri_fields.present?
           if params[:multi_value_separator].present? and @separator_fields.present?
-            check_multi_val_fields(row_number, row, params[:multi_value_separator])
+            check_multi_val_fields($., row, params[:multi_value_separator])
           else
             alert_message = "No multi-value separator character was selected or no fields were configured. CSV Checker didn't check for valid separators."
             if flash[:alert] and flash[:alert].exclude?(alert_message) # Only add this message once, rather than per line
@@ -244,9 +243,9 @@ module CdmMigrator
             end
           end
         elsif row[:object_type] == "File"
-          check_file_path(row_number, row[:url])
+          check_file_path($., row[:url])
         else
-          @error_list[row_number] = { "object_type" => "No or unknown object type. Please give a valid type (e.g. GenericWork, File)." }
+          @error_list[$.] = { "object_type" => "No or unknown object type. Please give a valid type (e.g. GenericWork, File)." }
         end
         @error_list.delete_if { |key, value| value.blank? } # Data are valid, no need to print the row
       end
@@ -264,6 +263,9 @@ module CdmMigrator
         @error_list[row_number] = { "url" => "url is blank." }
       elsif File.file?(file_path.gsub("file://", "")) == false
         @error_list[row_number] = { "url" => "No file found at #{file_path}" }
+      end
+      unless file_path.ascii_only?
+        @error_list[row_number] = { "url" => "File path contains diacritics or characters that the uploader can't parse: \n\n#{file_path}" }
       end
     end
 
@@ -328,7 +330,7 @@ module CdmMigrator
     def check_multi_val_fields(row_number, row, character)
       uri_fields = @separator_fields
       separator_errors = uri_fields.each_with_object({}) do |field, hash|
-        if value = row[field]
+        if value = row[field] and value.present?
           # Check for leading or trailing spaces
           if value.match %r{ #{Regexp.escape(character)}|#{Regexp.escape(character)} }
             hash[field.to_s] = "Contains leading or trailing whitespace around multi-value separator."
@@ -392,7 +394,7 @@ module CdmMigrator
         data.each do |key, att|
           if (att.nil? || att.empty? || key.to_s.include?("object_type") || !accepted_terms.include?(key.to_sym))
             next
-          elsif (object.send(key).nil?)
+          elsif (object.send(key).nil? || key == 'date_digitized' )
             final_data[key] = att
           else
             final_data[key] = att.split(mvs)
