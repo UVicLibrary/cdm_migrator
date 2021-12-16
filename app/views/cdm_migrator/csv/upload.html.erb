@@ -12,7 +12,7 @@
     <%= f.label 'Collection:' %>
     <%= select_tag "collection", options_for_select(@collections.sort { |x,y| x[0].downcase <=> y[0].downcase }), :include_blank => true %>
 		<br />
-	<%= f.submit 'Save' %>
+	<%= f.submit 'Save', data: { disable_with: 'Submitting CSV...' } %>
 <% end %>
 <br />
 <%= link_to "template", csv_generate_path %>
