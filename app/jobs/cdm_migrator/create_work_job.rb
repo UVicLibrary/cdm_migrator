@@ -18,9 +18,18 @@ module CdmMigrator
       work.member_of_collections = [collection] if collection
       work.admin_set = admin_set if admin_set
       work.date_uploaded = DateTime.now
-      work.save
-      BatchCreateFilesJob.perform_later work, ingest_work, user
-
+      begin
+        work.save!
+      # Weird error where descriptions with whitespace chars \n or \r don't save the 1st time
+      # but do on the second
+      rescue Ldp::BadRequest
+        old_descr = work.description.clone.to_a
+        work.description = work.description.map { |w| w.gsub("\n","").gsub("\r","") }
+        work.save!
+        work.description = old_descr
+        work.save!
+      end
+      BatchCreateFilesJob.perform_later(work, ingest_work, user)
     end
   end
 end
