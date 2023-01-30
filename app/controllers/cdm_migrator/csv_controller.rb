@@ -93,7 +93,7 @@ module CdmMigrator
 
     def update
       mvs = params[:csv_update][:mvs]
-      csv = CSV.parse(params[:csv_update][:csv_file].read, headers: true, encoding: 'utf-8').map(&:to_hash)
+      csv = CSV.parse(params[:csv_update][:csv_file].read.force_encoding("UTF-8"), headers: true, encoding: 'utf-8').map(&:to_hash)
       csv.each do |row|
         obj = ActiveFedora::Base.find row['id']
         type = row.first.last
@@ -142,79 +142,86 @@ module CdmMigrator
 
     private
 
-      def authenticate
-        authorize! :create, available_works.first
+    def authenticate
+      authorize! :create, available_works.first
+    end
+
+    def add_line doc
+      line_hash = {}
+      line_hash['type'] = doc._source[:has_model_ssim].first
+      work_fields.each do |field|
+        line_hash[field] = create_cell doc, field
       end
+      @csv_array << line_hash.values_at(*@csv_headers).map { |cell| cell = '' if cell.nil?; "\"#{cell.gsub("\"", "\"\"")}\"" }.join(',')
 
-      def add_line doc
-        line_hash = {}
-        line_hash['type'] = doc._source[:has_model_ssim].first
-        work_fields.each do |field|
-          line_hash[field] = create_cell doc, field
-        end
-        @csv_array << line_hash.values_at(*@csv_headers).map { |cell| cell = '' if cell.nil?; "\"#{cell.gsub("\"", "\"\"")}\"" }.join(',')
+    end
 
-      end
+    def work_fields
+      @fields ||=  available_works.map { |work| work.new.attributes.keys }.flatten.uniq - excluded_fields
+    end
 
-      def work_fields
-        @fields ||=  available_works.map { |work| work.new.attributes.keys }.flatten.uniq - excluded_fields
-      end
-
-      def excluded_fields
-        %w[date_uploaded date_modified head tail state proxy_depositor on_behalf_of arkivo_checksum label
+    def excluded_fields
+      %w[date_uploaded date_modified head tail state proxy_depositor on_behalf_of arkivo_checksum label
        relative_path import_url part_of resource_type access_control_id
        representative_id thumbnail_id rendering_ids admin_set_id embargo_id
        lease_id]
-      end
+    end
 
-      def create_cell w, field
-        if field.include? 'date'
-          if w._source[field+'_tesim'].is_a?(Array)
-            w._source[field+'_tesim'].join('|')
-          else
-            w._source[field+'_tesim']
-          end
-        elsif w.respond_to?(field.to_sym)
-          if w.send(field).is_a?(Array)
-            w.send(field).join('|')
-          else
-            w.send(field)
-          end
+    def create_cell w, field
+      if field.include? 'date' or field == 'chronological_coverage'
+        if w._source[field+'_tesim'].is_a?(Array)
+          w._source[field+'_tesim'].join('|')
+        else
+          w._source[field+'_tesim']
+        end
+      elsif w.respond_to?(field.to_sym)
+        if w.send(field).is_a?(Array)
+          w.send(field).join('|')
+        else
+          w.send(field)
         end
       end
+    end
 
-      def available_works
-        @available_works ||= Hyrax::QuickClassificationQuery.new(current_user).authorized_models
-      end
+    def available_works
+      @available_works ||= Hyrax::QuickClassificationQuery.new(current_user).authorized_models
+    end
 
-      def parse_csv csv, mvs
-        csv    = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
-        @works = []
-        csv.each do |row|
-          type = row.first.last
-          if type.nil?
-            next
-          elsif type.include? "Work"
-            metadata = create_data(row, work_form(type), Object.const_get(type).new, mvs)
-            @works << {type: type, metadata: metadata, files: []}
-          elsif type.include? "File"
-            metadata = create_data(row, file_form, FileSet.new, mvs)
-            @works.last[:files] << {url: row.delete('url'), title: row.delete('title'), metadata: metadata}
-          end
+    def parse_csv csv, mvs
+      csv    = CSV.parse(File.read(csv), headers: true, encoding: 'utf-8').map(&:to_hash)
+      @works = []
+      csv.each do |row|
+        type = row.first.last
+        if type.nil?
+          next
+        elsif type.include? "Work"
+          metadata = create_data(row, work_form(type), Object.const_get(type).new, mvs)
+          @works << {type: type, metadata: metadata, files: []}
+        elsif type.include? "File"
+          metadata = create_data(row, file_form, FileSet.new, mvs)
+          @works.last[:files] << {url: row.delete('url'), title: row.delete('title'), metadata: metadata}
         end
       end
+    end
 
     def load_config
-      tenant = Account.find_by(tenant: Apartment::Tenant.current).cname
+      if Settings.multitenancy.enabled
+        tenant = Account.find_by(tenant: Apartment::Tenant.current).cname
+      else
+        tenant = "default"
+      end
       if CdmMigrator::Engine.config['tenant_settings'].has_key?(tenant)
         settings = CdmMigrator::Engine.config['tenant_settings'][tenant]['csv_checker']
         if settings.present?
-          # .map will throw an error if settings[key] has no value
-          @edtf_fields = settings['edtf_fields'].map(&:to_sym) if settings['edtf_fields']
+          @date_indexing_service = settings['date_indexing_service'].first.constantize if settings['date_indexing_service']
+          @date_fields = settings['date_fields'].map(&:to_sym) if settings['date_fields']
           @uri_fields = settings['valid_uri_fields'].map(&:to_sym) if settings['valid_uri_fields']
           @separator = settings['multi_value_separator']
           @separator_fields = settings['separator_fields'].map(&:to_sym) if settings['separator_fields']
           @path_to_drive = settings['path_to_drive']
+          # If you would like to change this to match the uploader's max file size,
+          # change this to Hyrax.config.uploader[:maxFileSize]
+          @max_file_size = settings['max_file_size']
         else
           raise "Cdm Migrator couldn't find any configured settings. Are they in cdm_migrator.yml?"
         end
@@ -224,16 +231,17 @@ module CdmMigrator
     end
 
     def check_csv csv_file
-      #row_number = 1
+      row_number = 1
       @error_list = {}
       check_mounted_drive if @path_to_drive.present?
 
       CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
+        row_number +=1 # Tells user what CSV row the error is on
         if row[:object_type].include? "Work"
-          check_edtf($., row) if @edtf_fields.present?
-          check_uris($., row) if @uri_fields.present?
+          check_dates(row_number, row) if @date_fields.present?
+          check_uris(row_number, row) if @uri_fields.present?
           if params[:multi_value_separator].present? and @separator_fields.present?
-            check_multi_val_fields($., row, params[:multi_value_separator])
+            check_multi_val_fields(row_number, row, params[:multi_value_separator])
           else
             alert_message = "No multi-value separator character was selected or no fields were configured. CSV Checker didn't check for valid separators."
             if flash[:alert] and flash[:alert].exclude?(alert_message) # Only add this message once, rather than per line
@@ -243,11 +251,34 @@ module CdmMigrator
             end
           end
         elsif row[:object_type] == "File"
-          check_file_path($., row[:url])
+          check_file_path(row_number, row[:url])
+          check_transcript_length(row_number, row[:transcript]) if row[:transcript].present?
+          check_file_size(row_number, row[:url])
         else
-          @error_list[$.] = { "object_type" => "No or unknown object type. Please give a valid type (e.g. GenericWork, File)." }
+          @error_list[row_number] = { "object_type" => "No or unknown object type. Please give a valid type (e.g. GenericWork, File)." }
         end
         @error_list.delete_if { |key, value| value.blank? } # Data are valid, no need to print the row
+      end
+    end
+
+    def check_transcript_length(row_number, transcript)
+      if transcript.is_a? String
+        if transcript.length > 9000
+          @error_list[row_number] = { "transcript" => "Transcript is too long (over 9000 characters)." }
+        end
+      elsif transcript.is_a? Array
+        if transcript.any? { |tr| tr.length > 9000 }
+          @error_list[row_number] = { "transcript" => "Transcript is too long (over 9000 characters)." }
+        end
+      end
+    end
+
+    def check_file_size(row_number, file_path)
+      if file_path.present? && File.file?(file_path) && @max_file_size
+        if File.size(file_path.gsub("file://", "")) > @max_file_size
+          @error_list[row_number] = { "file size" => "The file at #{file_path} is too large to be uploaded. Please compress the file or split it into parts.
+                                                      Each part should be under #{helpers.number_to_human_size(@max_file_size)}." }
+        end
       end
     end
 
@@ -264,55 +295,23 @@ module CdmMigrator
       elsif File.file?(file_path.gsub("file://", "")) == false
         @error_list[row_number] = { "url" => "No file found at #{file_path}" }
       end
-      unless file_path.ascii_only?
-        @error_list[row_number] = { "url" => "File path contains diacritics or characters that the uploader can't parse: \n\n#{file_path}" }
-      end
     end
 
-    def check_edtf(row_number, row)
-      edtf_fields = @edtf_fields
-      edtf_errors = edtf_fields.each_with_object({}) do |field, hash|
-        temp_date = row[field]
-        if temp_date
-          # modify date so that the interval encompasses the years on the last interval date
-          temp_date = temp_date.gsub('/..','').gsub('%','?~').gsub(/\/$/,'')
-          date = temp_date.include?("/") ? temp_date.gsub(/([0-9]+X+\/)([0-9]+)(X+)/){"#{$1}"+"#{$2.to_i+1}"+"#{$3}"}.gsub("X","u") : temp_date
-          date = date.gsub("XX-","uu-").gsub("X-", "u-").gsub('XX?','uu').gsub('X?', 'u').gsub('u?','u').gsub('?','')
-          # edtf has trouble with year-month (e.g. "19uu-12") or year-season strings (e.g. "190u-23")
-          # that contain unspecified years, or intervals containing the above ("19uu-22/19uu-23", etc.).
-          # So we check for/create exceptions.
-          # Check for season interval
-          if Date.edtf(date) == nil and date != "unknown" # Accept season intervals
-            unless is_season?(date.split("/").first) and is_season?(date.split("/").second)
-              # If an interval then, check each date individually
-              if date.include?("/")
-                dates = date.split("/")
-              else
-                dates = [date]
-              end
-              dates.each do |d|
-                # Dates with 'u' in the last digit of the year return invalid when in format YYYY-MM
-                # So we flub day specifity before checking again if the date is valid
-                unless Date.edtf(d + '-01') # Date.edtf('193u-03-01') returns valid
-                  if match = d[/\d{3}u/] or match = d[/\d{2}u{2}-[2][1-4]/] # edtf can't parse single u in year (e.g. 192u) or uu in YYYY-SS (e.g. 19uu-21), so we replace it
-                    d.gsub!(match, match.gsub("u","0"))
-                    unless Date.edtf(d)
-                      hash[field.to_s] = "Blank or not a valid EDTF date."
-                    end
-                  else
-                    hash[field.to_s] = "Blank or not a valid EDTF date."
-                  end
-                end
-              end
-            end
-          end
+    def check_dates(row_number, row)
+      date_fields = @date_fields
+      unless @date_indexing_service
+        flash[:alert] = "No date indexing service was configured so CSV Checker didn't validate dates."
+        return
+      end
+      edtf_errors = date_fields.each_with_object({}) do |field, hash|
+        next unless row[field]
+        begin
+          @date_indexing_service.new(row[field])
+        rescue *@date_indexing_service.error_classes => error
+          hash[field.to_s] = "#{error.message}"
         end
       end
       @error_list[row_number] = edtf_errors
-    end
-
-    def is_season?(date)
-      Date.edtf(date).class == EDTF::Season
     end
 
     # <Example: should be http://rightsstatements.org/vocab/etc. NOT https://rightsstatements.org/page/etc.
@@ -323,14 +322,18 @@ module CdmMigrator
           hash[field.to_s] = "Links to page instead of URI. (e.g. https://rightsstatements.org/page/etc. instead of http://rightsstatements.org/vocab/etc.)"
         end
       end
-      @error_list[row_number].merge!(uri_errors)
+      if @error_list.any?
+        @error_list[row_number].merge!(uri_errors)
+      else
+        @error_list[row_number] = uri_errors
+      end
     end
 
     # Check multi-value separators
     def check_multi_val_fields(row_number, row, character)
       uri_fields = @separator_fields
       separator_errors = uri_fields.each_with_object({}) do |field, hash|
-        if value = row[field] and value.present?
+        if value = row[field]
           # Check for leading or trailing spaces
           if value.match %r{ #{Regexp.escape(character)}|#{Regexp.escape(character)} }
             hash[field.to_s] = "Contains leading or trailing whitespace around multi-value separator."
@@ -356,70 +359,70 @@ module CdmMigrator
       @error_list[row_number].merge!(separator_errors)
     end
 
-      def default_page_title
-        'CSV Batch Uploader'
-      end
+    def default_page_title
+      'CSV Batch Uploader'
+    end
 
-      def admin_host?
-        false unless Settings.multitenancy.enabled
-      end
+    def admin_host?
+      false unless Settings.multitenancy.enabled
+    end
 
-      def available_translations
-        {
-            'en' => 'English',
-            'fr' => 'French'
-        }
-      end
+    def available_translations
+      {
+          'en' => 'English',
+          'fr' => 'French'
+      }
+    end
 
-      def work_form(worktype = "GenericWork")
-        Module.const_get("Hyrax::#{worktype}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
-      end
+    def work_form(worktype = "GenericWork")
+      Module.const_get("Hyrax::#{worktype}Form") rescue nil || Module.const_get("Hyrax::Forms::WorkForm")
+    end
 
-      def file_form
-        Module.const_get("Hyrax::FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
-      end
+    def file_form
+      Module.const_get("Hyrax::FileSetForm") rescue nil || Module.const_get("Hyrax::Forms::FileSetEditForm")
+    end
 
-      def secondary_terms form_name
-        form_name.terms - form_name.required_fields -
-            [:visibility_during_embargo, :embargo_release_date,
-             :visibility_after_embargo, :visibility_during_lease,
-             :lease_expiration_date, :visibility_after_lease, :visibility,
-             :thumbnail_id, :representative_id, :ordered_member_ids,
-             :collection_ids, :in_works_ids, :admin_set_id, :files, :source, :member_of_collection_ids]
-      end
+    def secondary_terms form_name
+      form_name.terms - form_name.required_fields -
+          [:visibility_during_embargo, :embargo_release_date,
+           :visibility_after_embargo, :visibility_during_lease,
+           :lease_expiration_date, :visibility_after_lease, :visibility,
+           :thumbnail_id, :representative_id, :ordered_member_ids,
+           :collection_ids, :in_works_ids, :admin_set_id, :files, :source, :member_of_collection_ids]
+    end
 
-      def create_data data, type, object, mvs
-        final_data     = {}
-        accepted_terms = type.required_fields + secondary_terms(type)
-        data.each do |key, att|
-          if (att.nil? || att.empty? || key.to_s.include?("object_type") || !accepted_terms.include?(key.to_sym))
-            next
-          elsif (object.send(key).nil? || key == 'date_digitized' )
-            final_data[key] = att
-          else
-            final_data[key] = att.split(mvs)
-          end
+    def create_data data, type, object, mvs
+      final_data     = {}
+      accepted_terms = type.required_fields + secondary_terms(type)
+      data.each do |key, att|
+        if (att.nil? || att.empty? || key.to_s.include?("object_type") || !accepted_terms.include?(key.to_sym))
+          next
+        elsif object.send(key).nil?
+          final_data[key] = att
+        else
+          final_data[key] = att.split(mvs)
         end
-        final_data
       end
+      final_data
+    end
 
-      def create_lease visibility, status_after, date
-        lease = Hydra::AccessControls::Lease.new(visibility_during_lease: visibility,
-                                                 visibility_after_lease:  status_after, lease_expiration_date: @lease_date)
-        lease.save
-      end
+    def create_lease visibility, status_after, date
+      lease = Hydra::AccessControls::Lease.new(visibility_during_lease: visibility,
+                                               visibility_after_lease:  status_after, lease_expiration_date: @lease_date)
+      lease.save
+    end
 
-      def create_embargo visibility
-        embargo                           = Hydra::AccessControls::Embargo.new
-        embargo.visibility_during_embargo = visibility
-        embargo.visibility_after_embargo  = @status_after
-        embargo.embargo_release_date      = @embargo_date
-        embargo.save
-      end
+    def create_embargo visibility
+      embargo                           = Hydra::AccessControls::Embargo.new
+      embargo.visibility_during_embargo = visibility
+      embargo.visibility_after_embargo  = @status_after
+      embargo.embargo_release_date      = @embargo_date
+      embargo.save
+    end
 
-      def log(user)
-        Hyrax::Operation.create!(user:           user,
-                                 operation_type: "Attach Remote File")
-      end
+    def log(user)
+      Hyrax::Operation.create!(user:           user,
+                               operation_type: "Attach Remote File")
+    end
   end
 end

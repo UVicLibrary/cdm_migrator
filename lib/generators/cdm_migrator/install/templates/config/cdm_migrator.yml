@@ -24,7 +24,9 @@ tenant_settings:
         dir1: '/dir1/path/goes/here'
         dir2: '/dir2/path/goes/here'
     csv_checker:
-      edtf_fields:
+      date_indexing_service:
+      #  - DateIndexingService # The class name of your date validation/indexing service
+      date_fields:
       # - date_created
       valid_uri_fields:
       # - rights_statement
@@ -33,6 +35,7 @@ tenant_settings:
       # - subject
       multi_value_separator: # '|'
       path_to_drive: #'/mnt/drive'
+      max_file_size: # 17179869184 # in bytes
 default_fields:
   - title
   - creator
