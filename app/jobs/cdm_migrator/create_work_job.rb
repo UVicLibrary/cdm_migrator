@@ -29,6 +29,8 @@ module CdmMigrator
         work.description = old_descr
         work.save!
       end
+      # To use the BatchCreateFilesWithOrderedMembersJob instead, replace the following line
+      # with BatchCreateFilesWithOrderedMembersJob.perform_later(work, ingest_work, user)
       BatchCreateFilesJob.perform_later(work, ingest_work, user)
     end
   end
