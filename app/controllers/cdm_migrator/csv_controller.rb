@@ -29,7 +29,7 @@ module CdmMigrator
 
     def upload
       @admin_sets  = AdminSet.all.map { |as| [as.title.first, as.id] }
-      @collections = Collection.all.map { |col| [col.title.first, col.id] }
+      @collections = Hyrax.config.collection_class.all.map { |col| [col.title.first, col.id] }
     end
 
     def create
@@ -88,7 +88,7 @@ module CdmMigrator
     end
 
     def edit
-      @collections = ::Collection.all.map { |c| [c.title.first, c.id] }
+      @collections = Hyrax.config.collection_class.all.map { |c| [c.title.first, c.id] }
     end
 
     def update
@@ -102,7 +102,7 @@ module CdmMigrator
         elsif type.include? "Work"
           metadata = create_data(row.except('id', 'type'), work_form(type), obj, mvs)
         elsif type.include? "File"
-          metadata = create_data(row.except('id', 'type'), work_form(type), obj, mvs)
+          metadata = create_data(row.except('id', 'type'), file_form, obj, mvs)
         end
         unless metadata.nil?
           obj.attributes = metadata
@@ -114,28 +114,19 @@ module CdmMigrator
     end
 
     def export
-      solr = RSolr.connect url: Account.find_by(tenant: Apartment::Tenant.current).solr_endpoint.url
+      # Get a collection's member works from Solr
+      solr = RSolr.connect url: Blacklight.connection_config[:url]
       response = solr.get 'select', params: {
           q: "member_of_collection_ids_ssim:#{params[:collection_id]}",
+          fq: ["has_model_ssim:FileSet OR has_model_ssim:*Work"],
           rows: 3400,
           fl: "id"
       }
       unless response['response']['docs'].empty? || response['response']['docs'][0].empty?
         work_ids = response['response']['docs'].map { |doc| doc['id'] }
       end
-      #works    = ::ActiveFedora::Base.where member_of_collection_ids_ssim: params[:collection_id]
-      @csv_headers = ['type'] + work_fields
-      @csv_array   = [@csv_headers.join(',')]
-      work_ids.each do |work_id|
-        doc = ::SolrDocument.find work_id
-        add_line doc
-        doc._source[:file_set_ids_ssim].each do |file_id|
-          file_doc = ::SolrDocument.find file_id
-          add_line file_doc
-        end
-      end
 
-      send_data @csv_array.join("\n"),
+      send_data CsvExportService.new(available_works).csv_for(work_ids),
                 :type => 'text/csv; charset=iso-8859-5; header=present',
                 :disposition => "attachment; filename=export.csv"
     end
@@ -144,43 +135,6 @@ module CdmMigrator
 
     def authenticate
       authorize! :create, available_works.first
-    end
-
-    def add_line doc
-      line_hash = {}
-      line_hash['type'] = doc._source[:has_model_ssim].first
-      work_fields.each do |field|
-        line_hash[field] = create_cell doc, field
-      end
-      @csv_array << line_hash.values_at(*@csv_headers).map { |cell| cell = '' if cell.nil?; "\"#{cell.gsub("\"", "\"\"")}\"" }.join(',')
-
-    end
-
-    def work_fields
-      @fields ||=  available_works.map { |work| work.new.attributes.keys }.flatten.uniq - excluded_fields
-    end
-
-    def excluded_fields
-      %w[date_uploaded date_modified head tail state proxy_depositor on_behalf_of arkivo_checksum label
-       relative_path import_url part_of resource_type access_control_id
-       representative_id thumbnail_id rendering_ids admin_set_id embargo_id
-       lease_id]
-    end
-
-    def create_cell w, field
-      if field.include? 'date' or field == 'chronological_coverage'
-        if w._source[field+'_tesim'].is_a?(Array)
-          w._source[field+'_tesim'].join('|')
-        else
-          w._source[field+'_tesim']
-        end
-      elsif w.respond_to?(field.to_sym)
-        if w.send(field).is_a?(Array)
-          w.send(field).join('|')
-        else
-          w.send(field)
-        end
-      end
     end
 
     def available_works
@@ -277,7 +231,7 @@ module CdmMigrator
       if file_path.present? && File.file?(file_path) && @max_file_size
         if File.size(file_path.gsub("file://", "")) > @max_file_size
           @error_list[row_number] = { "file size" => "The file at #{file_path} is too large to be uploaded. Please compress the file or split it into parts.
-                                                      Each part should be under #{helpers.number_to_human_size(@max_file_size)}." }
+                                                    Each part should be under #{helpers.number_to_human_size(@max_file_size)}." }
         end
       end
     end
@@ -346,9 +300,9 @@ module CdmMigrator
                 hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
               end
             else # Or val should be string
-              invalid_chars = ["\\"]
-              # Make exceptions for backslashes that are part of whitespace characters
-              # by deleting them before checking for stray \s
+            invalid_chars = ["\\"]
+               # Make exceptions for backslashes that are part of whitespace characters
+               # by deleting them before checking for stray \s
               if val.delete("\t\r\n\s\n").match Regexp.union(invalid_chars)
                 hash[field.to_s] = "May contain an invalid character such as #{invalid_chars.to_sentence(last_word_connector: ", or ")}."
               end
