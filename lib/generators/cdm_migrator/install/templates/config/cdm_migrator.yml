@@ -51,3 +51,7 @@ default_fields:
   - identifier
   - based_near
   - related_url
+default_work_permissions:
+#  GenericWork:     # the work type to set default permissions for
+#    edit:          # the permission level (must also be set in config/initializers/hyrax.rb: Hyrax.config.permission_levels = ...). Default available values are edit, read
+#      - admin      # the group name (currently only groups are supported, not user names)
