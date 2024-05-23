@@ -67,7 +67,7 @@ module CdmMigrator
     def create_cell document, field
       properties = document.hydra_model.properties
       if document.respond_to?(field.to_sym)
-        if properties.keys.include?(field) && properties[field].multiple?
+        if properties.keys.include?(field) && properties[field].multiple? && field.to_sym != :doi
           document.send(field).join('|')
         else
           document.send(field)
