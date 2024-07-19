@@ -14,32 +14,59 @@ module CdmMigrator
     #     advantage of the same strategy as Hyrax::Actors::FileSetOrderedMembersActor
     #     but you don't need the OrderedMembersActor constant initialized.
 
-    # This rescue is a safeguard against creating lots of orphan file sets if there
-    # are recurring errors (see https://tinyurl.com/nh4c5e9j). Instead, CdmMigrator
-    # will fall back to creating file sets one-by-one if this job fails once.
-    rescue_from(StandardError) do |exception|
-      Rails.logger.error "BatchCreateFilesWithOrderedMembersJob error: #{exception.to_s}"
-      RestartUploadFromMiddleJob.perform_later(arguments[0], arguments[1], arguments[2])
+    def perform work, ingest_work, user
+      # Reload the work to get the most recent and accurate member associations
+      work.reload
+      if work.ordered_members.to_a.empty? && work.file_sets.empty?
+        attach_files(work, ingest_work.files, user)
+      else
+        delete_excess_file_sets(work)
+        ordered_count = work.reload.ordered_members.to_a.count
+        unless ordered_count == ingest_work.files.count
+          # Attach any files that might be missing
+          files = ingest_work[ordered_count..]
+          attach_files(work, files, user)
+        end
+      end
+      first_file_set = work.ordered_members.to_a.first
+      work.representative = first_file_set
+      work.thumbnail = first_file_set
+      work.save!
+      work.file_sets.each { |fs| CdmIngestFilesJob.perform_later(fs, fs.import_url, user, ingest_work) }
     end
 
-    def perform work, ingest_work, user
-        ordered_members = []
-        ingest_work.files.each do |file|
-          url = file[:url]
-          last_file = ingest_work.files.last==file
-          ::FileSet.new(import_url: url, label: file[:title]) do |fs|
-            fs.attributes = file[:metadata]
-            fs.save!
-            ordered_members << fs
-          end
+    private
+
+    def attach_files(work, ingest_work_files, user)
+      ingest_work_files.each do |file|
+        url = file[:url]
+        ordered_members = work.ordered_members
+        # last_file = ingest_work.files.last==file
+        ::FileSet.new(import_url: url, label: file[:title]) do |fs|
+          fs.attributes = file[:metadata]
+          fs.save!
+          ordered_members << fs
         end
-        actor = Hyrax::Actors::OrderedMembersActor.new(ordered_members, user)
-        actor.attach_ordered_members_to_work(work)
-        work.representative = work.ordered_members.to_a.first
-        work.thumbnail_id = work.ordered_member_ids.first
-        work.save!
-        work.file_sets.each { |fs| CdmIngestFilesJob.perform_later(fs, fs.import_url, user, ingest_work) }
+      end
+      work.save!
+      work.reload.ordered_members.to_a.each do |file_set|
+        Hyrax.config.callback.run(:after_create_fileset, file_set, user, warn: false)
+      end
     end
-    
+
+    # Sometimes when this job fails, file sets are attached to the work
+    # without attaching them as ordered members. This creates "ghost files"
+    # that don't show up in the interface but are still linked to the work as members
+    def delete_excess_file_sets(work)
+      ordered_members = work.ordered_members.to_a
+      ghost_members = work.file_sets.select { |fs| ordered_members.exclude? fs }
+      if ghost_members.any?
+        # Unlink the file sets from the parent work first because it makes deleting them faster
+        work.members = ordered_members
+        work.save!
+        ghost_members.each(&:destroy!)
+      end
+    end
+
   end
 end
