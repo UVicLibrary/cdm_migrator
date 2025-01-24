@@ -10,9 +10,10 @@ module CdmMigrator
       if params[:file]
         check_csv params[:file].path
         if @error_list.blank?
-          flash[:notice] = "All data are valid."
+          redirect_to csv_checker_path, notice: "All data are valid."
         else
           flash[:error] = "The CSV Checker found some errors in the CSV. Please correct them and check again."
+          render :csv_checker
         end
       end
     end
@@ -48,13 +49,13 @@ module CdmMigrator
       parse_csv(csv, params[:csv_import][:mvs])
 
       ingest = BatchIngest.new({
-                                   data:          @works,
-                                   size:          @works.length,
-                                   csv:           csv,
-                                   admin_set_id:  params[:admin_set],
-                                   collection_id: params[:collection],
-                                   user_id:       current_user.id,
-                                   message:       @path_list.blank? ? nil : @path_list.to_s.gsub("\"", "&quot;")
+                                 data:          @works,
+                                 size:          @works.length,
+                                 csv:           csv,
+                                 admin_set_id:  params[:admin_set],
+                                 collection_id: params[:collection],
+                                 user_id:       current_user.id,
+                                 message:       @path_list.blank? ? nil : @path_list.to_s.gsub("\"", "&quot;")
                                })
       if ingest.save! && @path_list.blank?
         BatchCreateWorksJob.perform_later(ingest, current_user)
@@ -117,10 +118,10 @@ module CdmMigrator
       # Get a collection's member works from Solr
       solr = RSolr.connect url: Blacklight.connection_config[:url]
       response = solr.get 'select', params: {
-          q: "member_of_collection_ids_ssim:#{params[:collection_id]}",
-          fq: ["has_model_ssim:FileSet OR has_model_ssim:*Work"],
-          rows: 3400,
-          fl: "id"
+        q: "member_of_collection_ids_ssim:#{params[:collection_id]}",
+        fq: ["has_model_ssim:FileSet OR has_model_ssim:*Work"],
+        rows: 3400,
+        fl: "id"
       }
       unless response['response']['docs'].empty? || response['response']['docs'][0].empty?
         work_ids = response['response']['docs'].map { |doc| doc['id'] }
@@ -299,10 +300,15 @@ module CdmMigrator
               unless remainder.blank?
                 hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
               end
+              if field != :genre && field != :resource_type
+                unless val.match(/\bhttps?:\/\/id.worldcat.org\/fast\/\d+\b/)
+                  hash[field.to_s] = "Field may contain an invalid URI or is missing a separator between URIs."
+                end
+              end
             else # Or val should be string
-            invalid_chars = ["\\"]
-               # Make exceptions for backslashes that are part of whitespace characters
-               # by deleting them before checking for stray \s
+              invalid_chars = ["\\"]
+              # Make exceptions for backslashes that are part of whitespace characters
+              # by deleting them before checking for stray \s
               if val.delete("\t\r\n\s\n").match Regexp.union(invalid_chars)
                 hash[field.to_s] = "May contain an invalid character such as #{invalid_chars.to_sentence(last_word_connector: ", or ")}."
               end
@@ -323,8 +329,8 @@ module CdmMigrator
 
     def available_translations
       {
-          'en' => 'English',
-          'fr' => 'French'
+        'en' => 'English',
+        'fr' => 'French'
       }
     end
 
@@ -338,11 +344,11 @@ module CdmMigrator
 
     def secondary_terms form_name
       form_name.terms - form_name.required_fields -
-          [:visibility_during_embargo, :embargo_release_date,
-           :visibility_after_embargo, :visibility_during_lease,
-           :lease_expiration_date, :visibility_after_lease, :visibility,
-           :thumbnail_id, :representative_id, :ordered_member_ids,
-           :collection_ids, :in_works_ids, :admin_set_id, :files, :source, :member_of_collection_ids]
+        [:visibility_during_embargo, :embargo_release_date,
+         :visibility_after_embargo, :visibility_during_lease,
+         :lease_expiration_date, :visibility_after_lease, :visibility,
+         :thumbnail_id, :representative_id, :ordered_member_ids,
+         :collection_ids, :in_works_ids, :admin_set_id, :files, :source, :member_of_collection_ids]
     end
 
     def create_data data, type, object, mvs
