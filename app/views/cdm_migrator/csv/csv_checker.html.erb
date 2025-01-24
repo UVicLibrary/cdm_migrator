@@ -26,9 +26,7 @@
   </ul>
 </div>
 
-
-
-<%= form_tag(check_csv_path, remote: true, method: :post, multipart: true, id: "csv-form") do %>
+<%= form_tag(check_csv_path, method: :post, multipart: true, local: true, id: "csv-form") do %>
   <div class="input-group">
     <%= label_tag :multi_value_separator %>
     <%= text_field_tag(:multi_value_separator, @separator, size: 1) %>
