@@ -42,7 +42,7 @@ module CdmMigrator
 
       permissions = permissions_config.map do |permission_level, group_name|
         # Check if the permission level is configured in Hyrax
-        raise "#{permission_level} permission is not configured in this repo. Is it set in Hyrax.config.permission_levels?" unless Hyrax.config.permission_levels.index(permission_level).presence
+        raise "#{permission_level} permission is not configured in this repo. Is it set in Hyrax.config.permission_levels?" unless Hyrax.config.permission_levels.has_value?(permission_level)
         # Construct each permission as a hash
         group_name.map do |group|
           { name: group, type: "group", access: permission_level }
