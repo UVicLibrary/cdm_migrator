@@ -1,10 +1,6 @@
-<% provide :page_title, "CSV Checker" %>
-
-<%#= flash[:alert].join("<br/>") if flash[:alert] %>
-
+<% content_for(:title, "CSV Checker") %>
 <h1>CSV Checker</h1>
 
-<!-- <div class="row"> -->
 <p>This tool validates CSV data and creates a table listing any errors.</p>
 
 <a role="button" class="collapse-toggle collapsed csv-collapse-link" data-toggle="collapse" data-target="#errors-explanation" aria-expanded="false">
@@ -37,7 +33,6 @@
     <% end %>
 <% end %>
 </div>
-<!-- </div> -->
 
 <div id="error_list" class="col-md-10 offset-md-1">
   <%= render 'error_list' %>

@@ -1,8 +1,8 @@
 module CdmMigrator
-  class CsvController < ApplicationController
-    helper_method :default_page_title, :admin_host?, :available_translations, :available_works
-    include ActionView::Helpers::UrlHelper
+  class CsvController < ::ApplicationController
+
     layout 'hyrax/dashboard' if Hyrax
+
     before_action :authenticate, except: :index
     before_action :load_config, only: :csv_checker
 
@@ -30,10 +30,10 @@ module CdmMigrator
 
     def upload
       @admin_sets  = AdminSet.all.map { |as| [as.title.first, as.id] }
-      @collections = Hyrax.config.collection_class.all.map { |col| [col.title.first, col.id] }
     end
 
     def create
+      csv_upload_params
       dir = Rails.root.join('public', 'uploads', 'csvs')
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       time     = DateTime.now.strftime('%s')
@@ -52,8 +52,8 @@ module CdmMigrator
                                  data:          @works,
                                  size:          @works.length,
                                  csv:           csv,
-                                 admin_set_id:  params[:admin_set],
-                                 collection_id: params[:collection],
+                                 admin_set_id:  params[:csv_import][:admin_set],
+                                 collection_id: params[:csv_import][:collection],
                                  user_id:       current_user.id,
                                  message:       @path_list.blank? ? nil : @path_list.to_s.gsub("\"", "&quot;")
                                })
@@ -107,6 +107,7 @@ module CdmMigrator
         end
         unless metadata.nil?
           obj.attributes = metadata
+          obj.try(:to_controlled_vocab)
           obj.save
         end
       end
@@ -138,6 +139,10 @@ module CdmMigrator
       authorize! :create, available_works.first
     end
 
+    def csv_upload_params
+      params.require(:csv_import).permit(:csv_file, :mvs, :admin_set, :collection)
+    end
+
     def available_works
       @available_works ||= Hyrax::QuickClassificationQuery.new(current_user).authorized_models
     end
@@ -160,7 +165,8 @@ module CdmMigrator
     end
 
     def load_config
-      if Settings.multitenancy.enabled
+      # multitenant? defined in ApplicationController
+      if multitenant?
         tenant = Account.find_by(tenant: Apartment::Tenant.current).cname
       else
         tenant = "default"
@@ -192,7 +198,7 @@ module CdmMigrator
 
       CSV.foreach(csv_file, headers: true, header_converters: :symbol) do |row|
         row_number +=1 # Tells user what CSV row the error is on
-        if row[:object_type].include? "Work"
+        if row[:object_type].try(:include?, "Work")
           check_dates(row_number, row) if @date_fields.present?
           check_uris(row_number, row) if @uri_fields.present?
           if params[:multi_value_separator].present? and @separator_fields.present?
@@ -232,7 +238,7 @@ module CdmMigrator
       if file_path.present? && File.file?(file_path) && @max_file_size
         if File.size(file_path.gsub("file://", "")) > @max_file_size
           @error_list[row_number] = { "file size" => "The file at #{file_path} is too large to be uploaded. Please compress the file or split it into parts.
-                                                    Each part should be under #{helpers.number_to_human_size(@max_file_size)}." }
+                                                  Each part should be under #{helpers.number_to_human_size(@max_file_size)}." }
         end
       end
     end
@@ -275,9 +281,11 @@ module CdmMigrator
       uri_errors = uri_fields.each_with_object({}) do |field, hash|
         if row[field] and row[field].include? "page"
           hash[field.to_s] = "Links to page instead of URI. (e.g. https://rightsstatements.org/page/etc. instead of http://rightsstatements.org/vocab/etc.)"
+        elsif row[field] and row[field].match?("https://vocab.getty")
+          hash[field.to_s] = "Getty AAT URIs should use http instead of https"
         end
       end
-      if @error_list.any?
+      if @error_list[row_number].present?
         @error_list[row_number].merge!(uri_errors)
       else
         @error_list[row_number] = uri_errors
@@ -295,8 +303,8 @@ module CdmMigrator
           end
           values = value.split(character).map(&:strip)
           values.each do |val|
-            if val.match(URI.regexp) # Val should be URI
-              remainder = val.gsub(val.match(URI.regexp)[0],'')
+            if val.match(URI::DEFAULT_PARSER.make_regexp) # Val should be URI
+              remainder = val.gsub(val.match(URI::DEFAULT_PARSER.make_regexp)[0],'')
               unless remainder.blank?
                 hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
               end
@@ -324,7 +332,8 @@ module CdmMigrator
     end
 
     def admin_host?
-      false unless Settings.multitenancy.enabled
+      # multitenant? defined in ApplicationController
+      false unless multitenant?
     end
 
     def available_translations
@@ -360,7 +369,11 @@ module CdmMigrator
         elsif object.send(key).nil?
           final_data[key] = att
         else
-          final_data[key] = att.split(mvs)
+          if object.class.properties[key.to_s].multiple?
+            final_data[key] = att.split(mvs)
+          else
+            final_data[key] = att
+          end
         end
       end
       final_data

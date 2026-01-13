@@ -1,18 +1,52 @@
-<h1><span class="fa fa-angle-double-up"></span> <%= default_page_title %></h1>
+<% content_for(:title, "CSV Batch Upload") %>
+<h1 class="mt-4 mb-3">CSV Batch Upload</h1>
 
-<%= form_for :csv_import, url: csv_create_path do |f| %>
-	<%= f.label 'Multi-value Separator:' %>
-    <%= f.text_field 'mvs' %>
-    <br />
-    <%= f.file_field 'csv_file' %>
-    <br />
-    <%= f.label 'Admin Set:' %>
-    <%= select_tag "admin_set", options_for_select(@admin_sets), :include_blank => true %>
-    <br />
-    <%= f.label 'Collection:' %>
-    <%= select_tag "collection", options_for_select(@collections.sort { |x,y| x[0].downcase <=> y[0].downcase }), :include_blank => true %>
-		<br />
-	<%= f.submit 'Save', data: { disable_with: 'Submitting CSV...' } %>
-<% end %>
-<br />
-<%= link_to "template", csv_generate_path %>
+<div class="form-group col-md-6">
+  <%= simple_form_for :csv_import, url: csv_create_path do |f| %>
+
+    <div class="form-row form-inline mb-3">
+      <%= f.label :mvs, label: 'Multi-value Separator', class: 'col-form-label', required: false %>
+      <%= f.input_field :mvs, class: 'form-control col-md-1', value: '|' %>
+    </div>
+
+    <div class="form-row form-inline mb-3">
+      <%= f.label :csv_file, class: 'col-form-label sr-only', required: false %>
+      <%= f.file_field :csv_file, class: 'form-control-file col-md-4' %>
+    </div>
+
+    <div class="form-row form-inline mb-3">
+      <%= f.label :admin_set, class: 'col-form-label', required: false  %>
+      <%= f.input :admin_set,
+                  collection: @admin_sets,
+                  label: false,
+                  class: 'form-inline' %>
+    </div>
+
+    <div class="form-row form-inline mb-3">
+      <%= f.label :collection, label: 'Collection', class: 'col-form-label', for: 'batch-upload-select-collection', required: false  %>
+      <%= f.input_field :collection,
+                        id: "batch-upload-select-collection",
+                        class: 'col-md-8 form-control',
+                        placeholder: 'Select a collection...',
+                        inline_label: 'Collection',
+                        data: {
+                          autocomplete: 'collection',
+                          'autocomplete-url' => Rails.application.routes.url_helpers.qa_path + '/search/collections?access=deposit'
+                        } %>
+    </div>
+
+
+    <%= f.submit 'Save',
+                 class: 'btn btn-primary',
+                 data: { disable_with: 'Submitting CSV...' } %>
+    <%= link_to "template", csv_generate_path, class: 'ml-4' %>
+  <% end %>
+</div>
+
+
+
+<script>
+    autocomplete = new autocompleteModule()
+    element = $('#batch-upload-select-collection')
+    autocomplete.setup(element, element.data('autocomplete'), element.data('autocomplete-url'))
+</script>
