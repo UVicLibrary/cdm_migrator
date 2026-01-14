@@ -1,5 +1,7 @@
 module CdmMigrator
   class CsvController < ::ApplicationController
+    # Needed for #current_page?
+    include ActionView::Helpers::UrlHelper
 
     layout 'hyrax/dashboard' if Hyrax
 
