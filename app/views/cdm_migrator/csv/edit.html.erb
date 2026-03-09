@@ -1,17 +1,36 @@
 
-<h1><span class="fa fa-map"></span> Export </h1>
+<h1 class="mt-3"><span class="fa fa-download"></span> Export Metadata</h1>
 
-<%= form_tag main_app.csv_export_path, method: :post do %>
-  <%= select_tag 'collection_id', options_for_select(@collections.sort { |x,y| x[0].downcase <=> y[0].downcase }), include_blank: true %>
-  <%= submit_tag "Download CSV", class: 'btn btn-primary' %>
+<%= simple_form_for :csv_export, url: csv_export_path, method: :post do |f| %>
+  <div class="form-row form-inline mb-3">
+    <%= f.label :collection, label: 'Collection', class: 'col-form-label', for: 'export-collection', required: false  %>
+    <%= f.input_field :collection,
+                      id: "export-collection",
+                      class: 'col-md-4 form-control',
+                      placeholder: 'Select a collection...',
+                      inline_label: 'Collection',
+                      data: {
+                        autocomplete: 'collection',
+                        'autocomplete-url' => Rails.application.routes.url_helpers.qa_path + '/search/collections?access=deposit'
+                      } %>
+  </div>
+  <%= f.submit "Download CSV", class: 'btn btn-primary mb-2', data: { disable_with: false } %>
 <% end %>
-<h1><span class="fa fa-map"></span> Update </h1>
+
+<h1 class="mt-3"><span class="fa fa-cloud-upload"></span> Batch Update Metadata</h1>
 
 <%= form_for :csv_update, url: csv_update_path do |f| %>
   <%= f.label 'Multi-value Separator:' %>
-  <%= f.text_field 'mvs' %>
+  <%= f.text_field 'mvs', class: "mb-2", value: '|'  %>
   <br />
-  <%= f.file_field 'csv_file' %>
+  <%= f.file_field 'csv_file', class: "mb-2" %>
   <br />
-  <%= f.submit 'Save' %>
+  <%= f.submit 'Save', class: 'btn btn-primary' %>
 <% end %>
+
+<script>
+  // Enable autocomplete on the collection id form
+  autocomplete = new autocompleteModule()
+  element = $('#export-collection')
+  autocomplete.setup(element, element.data('autocomplete'), element.data('autocomplete-url'))
+</script>

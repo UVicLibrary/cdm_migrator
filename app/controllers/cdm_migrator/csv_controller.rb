@@ -91,7 +91,7 @@ module CdmMigrator
     end
 
     def edit
-      @collections = Hyrax.config.collection_class.all.map { |c| [c.title.first, c.id] }
+      # Intentionally blank
     end
 
     def update
@@ -118,10 +118,11 @@ module CdmMigrator
     end
 
     def export
+      csv_export_params
       # Get a collection's member works from Solr
       solr = RSolr.connect url: Blacklight.connection_config[:url]
       response = solr.get 'select', params: {
-        q: "member_of_collection_ids_ssim:#{params[:collection_id]}",
+        q: "member_of_collection_ids_ssim:#{params[:csv_export][:collection]}",
         fq: ["has_model_ssim:FileSet OR has_model_ssim:*Work"],
         rows: 3400,
         fl: "id"
@@ -143,6 +144,10 @@ module CdmMigrator
 
     def csv_upload_params
       params.require(:csv_import).permit(:csv_file, :mvs, :admin_set, :collection)
+    end
+
+    def csv_export_params
+      params.require(:csv_export).permit(:collection)
     end
 
     def available_works
@@ -285,6 +290,10 @@ module CdmMigrator
           hash[field.to_s] = "Links to page instead of URI. (e.g. https://rightsstatements.org/page/etc. instead of http://rightsstatements.org/vocab/etc.)"
         elsif row[field] and row[field].match?("https://vocab.getty")
           hash[field.to_s] = "Getty AAT URIs should use http instead of https"
+        elsif field == :language
+          unless row[field].match?("http://id.loc.gov/vocabulary/iso639-3")
+            hash[field.to_s] = "Value doesn't look like a Library of Congress ISO639-3 URI. Is it a URI that starts with http://id.loc.gov/vocabulary/iso639-3?"
+          end
         end
       end
       if @error_list[row_number].present?
@@ -305,8 +314,8 @@ module CdmMigrator
           end
           values = value.split(character).map(&:strip)
           values.each do |val|
-            if val.match(URI::DEFAULT_PARSER.make_regexp) # Val should be URI
-              remainder = val.gsub(val.match(URI::DEFAULT_PARSER.make_regexp)[0],'')
+            if val.match(URI::RFC2396_PARSER.make_regexp) # Val should be URI
+              remainder = val.gsub(val.match(URI::RFC2396_PARSER.make_regexp)[0],'')
               unless remainder.blank?
                 hash[field.to_s] = "May contain the wrong multi-value separator or a typo in the URI."
               end
