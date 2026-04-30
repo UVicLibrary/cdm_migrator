@@ -1,6 +1,6 @@
 module CdmMigrator
   class BatchIngest < ActiveRecord::Base
-    serialize :data
+    serialize :data, coder: YAML
 
     def name
       csv.split('/').last.gsub(/[0-9]{10}/,"")
