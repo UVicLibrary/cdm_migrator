@@ -202,7 +202,7 @@ module CdmMigrator
     end
 
     def check_csv csv_file
-      CsvChecker.new.check_csv(csv_file)
+      results = CsvChecker.new.check_csv(csv_file)
       @error_list = results['errors']
     end
 
