@@ -1,3 +1,3 @@
 module CdmMigrator
-  VERSION = '3.6.2'
+  VERSION = '4.6.2'
 end
